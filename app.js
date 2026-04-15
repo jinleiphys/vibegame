@@ -225,6 +225,36 @@ const TRAD_TOOLS = [
   },
 ];
 
+const PROJECT_STAGE_DEFS = [
+  { key: "framing", label: "选题", color: "yellow", readyAt: 25 },
+  { key: "prototype", label: "原型", color: "blue", readyAt: 35 },
+  { key: "validation", label: "验证", color: "green", readyAt: 45 },
+  { key: "writing", label: "成稿", color: "purple", readyAt: 40 },
+];
+
+const PROJECT_TITLE_BANK = {
+  llm: ["长上下文代理对齐", "低成本推理路由", "幻觉缓释评测", "工具调用稳定性"],
+  cv: ["鲁棒视觉表征", "小样本生成控制", "长尾检测基准", "跨域分割稳定性"],
+  bio: ["蛋白功能发现", "多组学推断", "药物反应预测", "可重复生信流程"],
+  physics: ["物理先验神经算子", "可解释模拟器", "反问题求解", "实验-仿真校准"],
+  social: ["舆论扩散建模", "政策文本挖掘", "群体行为预测", "因果识别流程"],
+  achem: ["分子性质预测", "催化路线搜索", "材料筛选基准", "实验条件优化"],
+};
+
+const TOOL_PROJECT_EFFECTS = {
+  "ai-draft": { writing: 20, prototype: 4 },
+  "ai-code": { prototype: 15, validation: 3 },
+  "ai-review": { framing: 12, validation: 6 },
+  "ai-data": { prototype: 7, validation: 12 },
+  "ai-rebuttal": { writing: 10, validation: 6 },
+  "ai-grant": { framing: 4 },
+  "lit-sweep": { framing: 12, validation: 8 },
+  "manual-code": { prototype: 12, validation: 6 },
+  "benchmark": { validation: 18, prototype: 4 },
+  "audit": { validation: 14, framing: 4 },
+  "write-draft": { writing: 18, framing: 4 },
+};
+
 /* ─── Season Events ─── */
 const SEASON_CONFIG = {
   Q1: { name: "春季", desc: "申请国家基金的黄金季节。本季度可以提交基金申请。", color: "green" },
@@ -561,7 +591,7 @@ function cacheDom() {
     "resource-bars","ability-bars","self-care-actions","stat-papers","stat-graduated",
     "top-name","top-meta","quarter-badge","btn-end-quarter",
     "tab-nav","team-count",
-    "home-bio","home-quote","home-direction","home-tracks",
+    "home-brief","home-recommendation","goal-list","home-direction","project-title","project-stages",
     "season-title","season-desc","season-actions",
     "event-card","event-title","event-desc","event-choices",
     "team-grid","team-empty","btn-recruit",
@@ -669,6 +699,8 @@ function startGame() {
     name,
     direction: dir,
     strategyId: strat.id,
+    bio: sample(BIOS),
+    quote: sample(QUOTES),
     year: 1, quarter: 1, // Q1=spring, Q2=summer, Q3=fall, Q4=winter
     totalYears: TOTAL_YEARS,
 
@@ -688,6 +720,7 @@ function startGame() {
     // Project
     progress: strat.project.progress,
     evidence: strat.project.evidence,
+    activeProject: buildInitialProject(dir, strat),
 
     // Team
     students: [],
@@ -701,12 +734,17 @@ function startGame() {
     rivals: RIVALS.map(r => ({
       id: r.id, name: r.name, avatar: r.avatar, style: r.style,
       papers: 0, reputation: rand(5, 15), lastAction: "",
+      pipeline: rand(20, 45), rigor: rand(18, 40),
     })),
 
     // AI state
     aiWeakened: false,
     actionsThisQ: 0,
     maxActionsPerQ: 4,
+    selfCareUsed: false,
+    submittedThisQ: 0,
+    recruitedThisQ: 0,
+    quarterGoals: [],
 
     // Events
     eventResolved: false,
@@ -734,6 +772,7 @@ function startGame() {
 function continueGame() {
   S = loadSave();
   if (!S) return;
+  hydrateState();
   dom.startScreen.classList.add("hidden");
   dom.gameScreen.classList.remove("hidden");
   renderAll();
@@ -766,6 +805,11 @@ function generateQuarterContent() {
   S.actionsThisQ = 0;
   S.eventResolved = false;
   S.grantApplied = false;
+  S.selfCareUsed = false;
+  S.submittedThisQ = 0;
+  S.recruitedThisQ = 0;
+  maybeGenerateProjectDraft("季度开始");
+  S.quarterGoals = createQuarterGoals();
 
   // Random event (60% chance)
   if (Math.random() < 0.6 && S.year > 1) {
@@ -825,6 +869,7 @@ function endQuarter() {
   S.compute = Math.max(0, S.compute - 1);
 
   normalizeState();
+  resolveQuarterGoals();
 
   // Check fail conditions
   const collapse = checkCollapse();
@@ -854,8 +899,15 @@ function processStudents() {
     for (const [k, v] of Object.entries(type.cost)) S[k] = Math.max(0, S[k] - v);
     // Output (with random variance)
     if (s.type !== "ghost" || Math.random() > 0.5) {
-      S.progress += type.output.progress + rand(-1, 1);
-      S.evidence += type.output.evidence;
+      const progressGain = type.output.progress + rand(-1, 1);
+      const evidenceGain = type.output.evidence;
+      S.progress += progressGain;
+      S.evidence += evidenceGain;
+      applyProjectEffect({
+        prototype: Math.max(0, progressGain * 2),
+        writing: Math.max(0, Math.floor(progressGain / 2)),
+        validation: Math.max(0, evidenceGain * 3),
+      });
     }
     // Suspicion from faker
     if (type.suspicionPerQ) S.suspicion += type.suspicionPerQ;
@@ -877,14 +929,25 @@ function processStudents() {
     // Year progression
     s.yearInLab = (s.yearInLab || 0) + 0.25;
   }
+  maybeGenerateProjectDraft("团队推进");
 }
 
 function processRivals() {
   for (const r of S.rivals) {
     const def = RIVALS.find(x => x.id === r.id);
+    const momentum = def.progressPerQ();
+    const rigor = def.evidencePerQ();
+    r.pipeline = clamp((r.pipeline || 0) + momentum + Math.floor(rigor / 2), 0, 140);
+    r.rigor = clamp((r.rigor || 0) + rigor, 0, 100);
     r.reputation += rand(1, 3);
-    r.papers += Math.random() < 0.3 ? 1 : 0;
-    r.lastAction = sample(def.actions);
+    if (r.pipeline >= 100) {
+      r.pipeline -= 55;
+      r.papers += 1;
+      r.reputation += 2;
+      r.lastAction = `完成了一篇投稿冲刺：${sample(def.actions)}`;
+    } else {
+      r.lastAction = `${sample(def.actions)} · 距下次投稿约 ${Math.max(0, 100 - r.pipeline)} 点`;
+    }
   }
 }
 
@@ -904,6 +967,7 @@ function processSeasonEffects() {
         const accept = (p.quality + S.reputation + rand(-20, 20)) > 50;
         if (accept) {
           p.status = "published";
+          p.publishedAt = getFullLabel();
           S.paperCount++;
           S.reputation += 3;
           addNews(`论文「${p.title}」被接收！🎉`);
@@ -929,7 +993,9 @@ function processSeasonEffects() {
 
   // Q4: Annual review
   if (q === 4) {
-    const yearPapers = S.papers.filter(p => p.status === "published").length;
+    const yearPapers = S.papers.filter(
+      p => p.status === "published" && (p.publishedAt || "").startsWith(`${S.year}年`)
+    ).length;
     if (yearPapers === 0 && S.year > 1) {
       S.morale -= 5;
       addNews("年终总结：本年度零论文产出。院长约你「谈谈」。");
@@ -971,10 +1037,12 @@ function resolveStudentTrouble(choiceIdx) {
   S.pendingStudentEvent = null;
   hideModal();
   normalizeState();
+  resolveQuarterGoals();
   // Continue quarter end
   applyStrategyPassive();
   S.funding -= 2; S.morale -= 1; S.compute = Math.max(0, S.compute - 1);
   normalizeState();
+  resolveQuarterGoals();
   const collapse = checkCollapse();
   if (collapse) { finishGame(collapse); return; }
   S.quarter++;
@@ -1010,9 +1078,12 @@ function useTool(tool) {
     if (k === "progress" || k === "evidence") S[k] += val;
     else S[k] += val;
   }
+  applyProjectEffect(TOOL_PROJECT_EFFECTS[tool.id]);
   S.actionsThisQ++;
   addLog(`使用了「${tool.name}」`);
+  maybeGenerateProjectDraft(tool.name);
   normalizeState();
+  resolveQuarterGoals();
   saveState();
   renderAll();
 }
@@ -1025,13 +1096,16 @@ function makeEventChoice(idx) {
       handleSpecialFx(k, v);
     } else if (k === "progress" || k === "evidence") {
       S[k] += v;
+      applyProjectEffect(metricToProjectEffect(k, v));
     } else {
       S[k] += v;
     }
   }
   S.eventResolved = true;
   addLog(`事件「${S.currentEvent.title}」→「${ch.label}」`);
+  maybeGenerateProjectDraft(S.currentEvent.title);
   normalizeState();
+  resolveQuarterGoals();
   saveState();
   renderAll();
 }
@@ -1083,6 +1157,7 @@ function applyGrant() {
     addNews("基金申请失败。评审意见：「创新性不足」。");
     toast("基金没中...");
   }
+  resolveQuarterGoals();
   saveState();
   renderAll();
 }
@@ -1092,8 +1167,14 @@ function submitPaper(paperIdx) {
   const p = S.papers[paperIdx];
   if (!p || p.status !== "draft") return;
   p.status = "submitted";
+  p.submittedAt = getFullLabel();
   S.actionsThisQ++;
+  S.submittedThisQ++;
   addNews(`论文「${p.title}」已投稿，等待审稿结果...`);
+  if (p.origin === "player") {
+    advanceProjectCycle();
+  }
+  resolveQuarterGoals();
   saveState();
   renderAll();
 }
@@ -1117,73 +1198,372 @@ function recruitStudent() {
   };
   S.students.push(student);
   S.actionsThisQ++;
+  S.recruitedThisQ++;
   addNews(`招收了新学生：${student.name}（${student.desc}）`);
   toast(`新学生：${student.name}`);
+  resolveQuarterGoals();
   saveState();
   renderAll();
 }
 
 function selfCare(type) {
+  if (!canAct()) { toast("本季度行动次数已用完"); return; }
+  if (S.selfCareUsed) { toast("本季度应急操作已经用过了"); return; }
+
+  if (type === "hotpot" || type === "complain") type = "sync";
+
   if (type === "walk") {
-    S.morale = Math.min(100, S.morale + 5);
-    const r = Math.random();
-    if (r < 0.15) {
-      S.morale += 5;
-      toast("散步时突然有了灵感！morale +10");
-    } else if (r < 0.25) {
-      toast("在校园里遇到了院长，被问「最近论文怎么样」。morale +2");
-      S.morale = Math.min(100, S.morale - 3);
-    } else {
-      toast("校园漫步：morale +5");
-    }
+    S.morale += 6;
+    addNews("你强行离开工位半天。没有产出，但至少没继续恶化。");
+    toast("停机半天：morale +6");
   } else if (type === "massage") {
-    // 自费！不能用科研经费！
-    S.morale = Math.min(100, S.morale + 15);
-    toast("自费按摩：morale +15（自掏腰包，心安理得）");
-  } else if (type === "hotpot") {
-    // 学生请客 → 老师发劳务费 → 合规！
-    if (S.funding < 2) { toast("经费不够发劳务费..."); return; }
+    S.morale += 14;
+    addNews("你花了半天把自己从报错和审稿意见里拽出来。");
+    toast("自费恢复：morale +14");
+  } else if (type === "sync") {
     const activeStudents = S.students.filter(s => !s.graduated && !s.quit);
-    if (!activeStudents.length) { toast("没有学生可以请你吃饭..."); return; }
-    S.funding -= 2;
-    S.morale = Math.min(100, S.morale + 8);
-    for (const s of activeStudents) s._fedLastQ = true;
-    const scenarios = [
-      `学生请${S.name}老师吃了顿火锅，老师给每人发了劳务费。财务表示「合规」。`,
-      `组里聚餐，学生买单，老师以「学术交流劳务费」的名义报销给学生。完美闭环。`,
-      `学生请吃饭花了 800，老师发了 2000 劳务费。学生表示「老师太好了」。`,
-    ];
-    addNews(sample(scenarios));
-    toast("学生请客 + 发劳务费：morale +8, funding -2（合规！）");
+    S.morale += activeStudents.length ? 5 : 4;
+    S.evidence += activeStudents.length ? 2 : 0;
+    S.suspicion -= 3;
+    if (activeStudents.length) applyProjectEffect(metricToProjectEffect("evidence", 2));
+    addNews(activeStudents.length
+      ? "你开了次硬碰硬的组会，把含糊和侥幸都按下去了。"
+      : "你把待办重新排了一遍，至少知道下一步不是乱点按钮。");
+    toast(activeStudents.length ? "开组会止血：morale +5, evidence +2" : "重排优先级：morale +4");
   } else if (type === "retract") {
     const published = S.papers.filter(p => p.status === "published");
     if (!published.length) { toast("没有可以撤的论文"); return; }
     const worst = published.reduce((a, b) => a.quality < b.quality ? a : b);
     worst.status = "retracted";
-    S.suspicion = Math.max(0, S.suspicion - 15);
+    S.suspicion -= 15;
     S.reputation -= 5;
-    addNews(`主动撤回论文「${worst.title}」。学术圈表示「至少态度端正」。`);
-    toast("撤稿：suspicion -15, reputation -5");
-  } else if (type === "complain") {
-    // 发朋友圈吐槽
-    S.morale = Math.min(100, S.morale + 3);
-    const complaints = [
-      "发了一条朋友圈：「科研使我快乐.jpg」（设置了仅自己可见）",
-      "在学术吐槽群里发了一段话，获得 37 个「深有同感」",
-      "匿名在小红书发了一篇「青椒的一天」，阅读量 10w+",
-      "在 Twitter 上用小号吐槽了审稿人，被同事截图了",
-      "写了一篇「为什么我不建议读博」然后删了",
-    ];
-    const msg = sample(complaints);
-    addNews(msg);
-    toast("精神胜利法：morale +3");
-    if (Math.random() < 0.1) {
-      S.reputation -= 2;
-      toast("但是被同事看到了... reputation -2");
-    }
+    addNews(`你主动撤回了论文「${worst.title}」。这是止血，不是体面。`);
+    toast("主动撤稿：suspicion -15, reputation -5");
+  } else {
+    return;
   }
+
+  S.actionsThisQ++;
+  S.selfCareUsed = true;
+  addLog(`执行了应急操作：${type}`);
+  normalizeState();
+  resolveQuarterGoals();
   saveState();
   renderAll();
+}
+
+function buildInitialProject(direction, strat) {
+  const strategyBoost = {
+    methodical: { framing: 22, prototype: 10, validation: 16, writing: 2 },
+    "ai-first": { framing: 16, prototype: 18, validation: 9, writing: 6 },
+    networker: { framing: 20, prototype: 8, validation: 8, writing: 4 },
+  }[strat.id] || { framing: 18, prototype: 10, validation: 10, writing: 3 };
+
+  return buildProjectFromStages(direction, 1, strategyBoost);
+}
+
+function buildProjectFromStages(direction, cycle, stages) {
+  return {
+    cycle,
+    title: generateProjectTitle(direction, cycle),
+    stages: {
+      framing: clamp(stages.framing ?? 18, 0, 100),
+      prototype: clamp(stages.prototype ?? 8, 0, 100),
+      validation: clamp(stages.validation ?? 8, 0, 100),
+      writing: clamp(stages.writing ?? 0, 0, 100),
+    },
+  };
+}
+
+function generateProjectTitle(direction, cycle) {
+  const bank = PROJECT_TITLE_BANK[direction?.id] || ["主线项目重构"];
+  return `${direction?.name || "科研"} · ${sample(bank)} #${cycle}`;
+}
+
+function applyProjectEffect(delta = {}) {
+  if (!S?.activeProject) return;
+  for (const def of PROJECT_STAGE_DEFS) {
+    const next = (S.activeProject.stages[def.key] || 0) + (delta[def.key] || 0);
+    S.activeProject.stages[def.key] = clamp(next, 0, 100);
+  }
+}
+
+function metricToProjectEffect(metric, value) {
+  if (!value) return {};
+  if (metric === "progress") {
+    return { prototype: value * 2, writing: Math.trunc(value / 2) };
+  }
+  if (metric === "evidence") {
+    return { validation: value * 3, framing: Math.trunc(value) };
+  }
+  return {};
+}
+
+function projectReadyForDraft(project) {
+  return PROJECT_STAGE_DEFS.every(def => (project.stages[def.key] || 0) >= def.readyAt);
+}
+
+function currentPlayerDraft() {
+  if (!S?.activeProject) return null;
+  return S.papers.find(
+    p => p.origin === "player" && p.status === "draft" && p.projectCycle === S.activeProject.cycle
+  ) || null;
+}
+
+function computePlayerPaperQuality() {
+  const stages = S.activeProject.stages;
+  return clamp(
+    Math.round(
+      stages.framing * 0.18 +
+      stages.prototype * 0.22 +
+      stages.validation * 0.34 +
+      stages.writing * 0.26 +
+      S.research * 0.35 +
+      S.evidence * 0.18 -
+      S.suspicion * 0.22 +
+      rand(-5, 5)
+    ),
+    12,
+    95
+  );
+}
+
+function maybeGenerateProjectDraft(source) {
+  if (!S?.activeProject) return;
+
+  const existingCyclePaper = S.papers.find(
+    p => p.origin === "player" && p.projectCycle === S.activeProject.cycle
+  );
+  if (existingCyclePaper) {
+    if (existingCyclePaper.status === "draft") {
+      existingCyclePaper.quality = computePlayerPaperQuality();
+    }
+    return;
+  }
+
+  const existing = currentPlayerDraft();
+  if (existing) {
+    existing.quality = computePlayerPaperQuality();
+    return;
+  }
+  if (!projectReadyForDraft(S.activeProject)) return;
+
+  const paper = {
+    title: `${S.activeProject.title}：阶段性结果`,
+    status: "draft",
+    quality: computePlayerPaperQuality(),
+    author: S.name,
+    quarter: getFullLabel(),
+    origin: "player",
+    projectCycle: S.activeProject.cycle,
+  };
+  S.papers.push(paper);
+  addNews(`主线项目「${S.activeProject.title}」形成了可投稿草稿。来源：${source}。`);
+  toast("主线项目完成成稿");
+}
+
+function advanceProjectCycle() {
+  const stages = S.activeProject?.stages || {};
+  const carry = {
+    framing: clamp(Math.round(S.research * 0.25 + (stages.framing || 0) * 0.25), 12, 36),
+    prototype: clamp(Math.round((stages.prototype || 0) * 0.2), 0, 18),
+    validation: 0,
+    writing: 0,
+  };
+  const nextCycle = (S.activeProject?.cycle || 1) + 1;
+  S.activeProject = buildProjectFromStages(S.direction, nextCycle, carry);
+  addNews(`你把主线切到了下一题：「${S.activeProject.title}」。旧稿已经进入外部审稿。`);
+}
+
+function roundUpToStep(value, step) {
+  return Math.ceil(value / step) * step;
+}
+
+function createQuarterGoals() {
+  const goals = [];
+  const activeStudents = S.students.filter(s => !s.graduated && !s.quit);
+  const draftExists = S.papers.some(p => p.status === "draft");
+
+  if (S.quarter === 1) {
+    goals.push({
+      id: "grant",
+      kind: "grant-applied",
+      label: "把本季度基金申请交出去",
+      reward: { funding: 4, reputation: 1 },
+      completed: false,
+    });
+  }
+
+  if (S.quarter === 3 && activeStudents.length < 2) {
+    goals.push({
+      id: "recruit",
+      kind: "recruited-min",
+      threshold: 1,
+      label: "招生季至少招 1 个学生",
+      reward: { reputation: 2, tokens: 4 },
+      completed: false,
+    });
+  }
+
+  if (draftExists) {
+    goals.push({
+      id: "submit",
+      kind: "submitted-min",
+      threshold: 1,
+      label: "把现有草稿投出去 1 篇",
+      reward: { reputation: 3, funding: 2 },
+      completed: false,
+    });
+  } else if (S.activeProject) {
+    const weakest = PROJECT_STAGE_DEFS
+      .map(def => ({ ...def, ratio: (S.activeProject.stages[def.key] || 0) / def.readyAt }))
+      .sort((a, b) => a.ratio - b.ratio)[0];
+    const target = clamp(
+      roundUpToStep((S.activeProject.stages[weakest.key] || 0) + 12, 5),
+      weakest.readyAt,
+      weakest.readyAt + 20
+    );
+    goals.push({
+      id: `stage-${weakest.key}`,
+      kind: "stage-min",
+      key: weakest.key,
+      threshold: target,
+      label: `把${weakest.label}推进到 ${target}`,
+      reward: { tokens: 4, reputation: 1 },
+      completed: false,
+    });
+  }
+
+  if (S.suspicion >= 18) {
+    goals.push({
+      id: "risk-down",
+      kind: "metric-max",
+      key: "suspicion",
+      threshold: Math.max(10, S.suspicion - 8),
+      label: `把学术嫌疑压到 ${Math.max(10, S.suspicion - 8)} 以下`,
+      reward: { reputation: 2, morale: 3 },
+      completed: false,
+    });
+  } else if (S.tokens < 12 && S.funding >= 5) {
+    goals.push({
+      id: "token-buffer",
+      kind: "metric-min",
+      key: "tokens",
+      threshold: Math.max(16, S.tokens + 6),
+      label: `把 Tokens 储备拉到 ${Math.max(16, S.tokens + 6)}`,
+      reward: { morale: 3, reputation: 1 },
+      completed: false,
+    });
+  } else {
+    goals.push({
+      id: "evidence-up",
+      kind: "metric-min",
+      key: "evidence",
+      threshold: clamp(roundUpToStep(S.evidence + 8, 5), 15, 70),
+      label: `把 Evidence 拉到 ${clamp(roundUpToStep(S.evidence + 8, 5), 15, 70)}`,
+      reward: { funding: 3, reputation: 1 },
+      completed: false,
+    });
+  }
+
+  return goals.slice(0, 2);
+}
+
+function goalIsComplete(goal) {
+  if (goal.kind === "grant-applied") return !!S.grantApplied;
+  if (goal.kind === "recruited-min") return (S.recruitedThisQ || 0) >= goal.threshold;
+  if (goal.kind === "submitted-min") return (S.submittedThisQ || 0) >= goal.threshold;
+  if (goal.kind === "stage-min") return (S.activeProject?.stages?.[goal.key] || 0) >= goal.threshold;
+  if (goal.kind === "metric-min") return (S[goal.key] || 0) >= goal.threshold;
+  if (goal.kind === "metric-max") return (S[goal.key] || 0) <= goal.threshold;
+  return false;
+}
+
+function rewardToText(reward) {
+  const labels = {
+    funding: "经费",
+    reputation: "声望",
+    morale: "心态",
+    tokens: "Tokens",
+    compute: "算力",
+    evidence: "Evidence",
+    progress: "Progress",
+  };
+  return Object.entries(reward).map(([k, v]) => `${v > 0 ? "+" : ""}${v} ${labels[k] || k}`).join(", ");
+}
+
+function resolveQuarterGoals() {
+  if (!Array.isArray(S?.quarterGoals)) return;
+  for (const goal of S.quarterGoals) {
+    if (goal.completed || !goalIsComplete(goal)) continue;
+    goal.completed = true;
+    for (const [k, v] of Object.entries(goal.reward || {})) {
+      S[k] = (S[k] || 0) + v;
+    }
+    addNews(`季度目标完成：「${goal.label}」→ 奖励 ${rewardToText(goal.reward || {})}`);
+    toast(`目标完成：${goal.label}`);
+  }
+  normalizeState();
+}
+
+function getHomeBrief() {
+  const project = S.activeProject;
+  const stageSummary = PROJECT_STAGE_DEFS
+    .map(def => `${def.label} ${project.stages[def.key]}/${def.readyAt}`)
+    .join(" · ");
+  return `${getTitle()}，${S.direction.name}方向。当前主线是「${project.title}」，这季度别再瞎点了：${stageSummary}。`;
+}
+
+function getRecommendation() {
+  if (S.pendingStudentEvent) return "先处理学生事故，否则季度结算会卡住。";
+  if (S.currentEvent && !S.eventResolved) return "先处理当前事件。你现在最缺的不是动作，是上下文。";
+  if (!canAct()) return "行动已经用完，准备结束本季度并吃结算。";
+  if (!S.selfCareUsed && S.morale <= 22) return "心态过低，先用一次应急操作止血，不然后面只会乱点。";
+  if (S.papers.some(p => p.status === "draft")) return "你手里已经有草稿，优先投稿，不要继续攒未兑现产能。";
+  if (S.quarter === 3 && S.students.filter(s => !s.graduated && !s.quit).length === 0) return "Q3 不招人，后面几年你会断产能。";
+  if (S.quarter === 1 && !S.grantApplied && S.funding < 30) return "先把基金申请交掉。经费不稳，全年节奏都会塌。";
+  if (S.tokens < 6 && S.funding >= 5) return "Tokens 快空了，先补资源，再谈效率。";
+  if (S.compute < 4 && S.funding >= 4) return "算力见底，先租 GPU，不然验证阶段会空转。";
+
+  const weakest = PROJECT_STAGE_DEFS
+    .map(def => ({ ...def, val: S.activeProject.stages[def.key] || 0, ratio: (S.activeProject.stages[def.key] || 0) / def.readyAt }))
+    .sort((a, b) => a.ratio - b.ratio)[0];
+
+  if (weakest.key === "framing") return "选题最弱，优先做文献综述或手动调研，把问题定义清楚。";
+  if (weakest.key === "prototype") return "原型最弱，去写代码或跑数据分析，先把可运行结果做出来。";
+  if (weakest.key === "validation") return "验证最弱，跑 Benchmark 或内部审计，别用空心结果硬投。";
+  return "成稿最弱，去写稿，把已知结果封装成可以投的草稿。";
+}
+
+function hydrateState() {
+  if (!S) return;
+
+  if (!S.bio) S.bio = sample(BIOS);
+  if (!S.quote) S.quote = sample(QUOTES);
+  if (!S.activeProject) {
+    const initialStages = {
+      framing: clamp(Math.round((S.evidence || 8) * 1.8), 12, 40),
+      prototype: clamp(Math.round((S.progress || 6) * 2), 8, 45),
+      validation: clamp(Math.round((S.evidence || 8) * 1.5), 8, 45),
+      writing: clamp(Math.round(Math.max(0, (S.progress || 0) - 10) * 1.2), 0, 30),
+    };
+    S.activeProject = buildProjectFromStages(S.direction || DIRECTIONS[0], 1, initialStages);
+  }
+  if (S.selfCareUsed === undefined) S.selfCareUsed = false;
+  if (S.submittedThisQ === undefined) S.submittedThisQ = 0;
+  if (S.recruitedThisQ === undefined) S.recruitedThisQ = 0;
+  if (!Array.isArray(S.quarterGoals) || S.quarterGoals.length === 0) S.quarterGoals = createQuarterGoals();
+
+  if (Array.isArray(S.rivals)) {
+    S.rivals = S.rivals.map(r => ({
+      ...r,
+      pipeline: r.pipeline ?? rand(20, 45),
+      rigor: r.rigor ?? rand(18, 40),
+    }));
+  }
+
+  maybeGenerateProjectDraft("存档修复");
+  normalizeState();
 }
 
 /* ═══ ENDINGS ═══ */
@@ -1260,6 +1640,7 @@ async function copyReport() {
 /* ═══ RENDERING ═══ */
 function renderAll() {
   if (!S) return;
+  hydrateState();
   renderProfile();
   renderTopBar();
   renderHome();
@@ -1305,12 +1686,13 @@ function renderProfile() {
   </div>`).join("");
 
   // Self care
+  const careLocked = !canAct() || S.selfCareUsed;
+  const hasPublished = S.papers.some(p => p.status === "published");
   dom.selfCareActions.innerHTML = `
-    <button class="btn-action" data-care="walk"><span class="action-icon">🚶</span><span class="action-label">校园漫步</span><span class="action-cost">免费</span></button>
-    <button class="btn-action" data-care="massage"><span class="action-icon">💆</span><span class="action-label">自费按摩</span><span class="action-cost">自掏腰包</span></button>
-    <button class="btn-action" data-care="hotpot"><span class="action-icon">🍲</span><span class="action-label">学生请客+发劳务</span><span class="action-cost">¥2万</span></button>
-    <button class="btn-action" data-care="complain"><span class="action-icon">😤</span><span class="action-label">发朋友圈吐槽</span><span class="action-cost">免费</span></button>
-    <button class="btn-action" data-care="retract"><span class="action-icon">📝</span><span class="action-label">撤稿止损</span><span class="action-cost">rep -5</span></button>
+    <button class="btn-action" data-care="walk" ${careLocked ? "disabled" : ""}><span class="action-icon">🧘</span><span class="action-label">停机半天</span><span class="action-cost">1 action</span></button>
+    <button class="btn-action" data-care="massage" ${careLocked ? "disabled" : ""}><span class="action-icon">💆</span><span class="action-label">自费恢复</span><span class="action-cost">1 action</span></button>
+    <button class="btn-action" data-care="sync" ${careLocked ? "disabled" : ""}><span class="action-icon">🫖</span><span class="action-label">开组会止血</span><span class="action-cost">1 action</span></button>
+    <button class="btn-action" data-care="retract" ${careLocked || !hasPublished ? "disabled" : ""}><span class="action-icon">📝</span><span class="action-label">主动撤稿</span><span class="action-cost">1 action</span></button>
   `;
   for (const btn of dom.selfCareActions.querySelectorAll("[data-care]")) {
     btn.onclick = () => selfCare(btn.dataset.care);
@@ -1328,18 +1710,30 @@ function renderTopBar() {
 }
 
 function renderHome() {
-  dom.homeBio.textContent = sample(BIOS);
-  dom.homeQuote.textContent = sample(QUOTES);
-  dom.homeDirection.textContent = `${S.direction.icon} ${S.direction.name} — ${S.direction.desc}`;
+  dom.homeBrief.textContent = getHomeBrief();
+  dom.homeRecommendation.textContent = getRecommendation();
+  dom.goalList.innerHTML = S.quarterGoals.map(goal => `
+    <div class="goal-item ${goal.completed ? "done" : ""}">
+      <div class="goal-main">
+        <span class="goal-state">${goal.completed ? "已完成" : "进行中"}</span>
+        <span class="goal-text">${goal.label}</span>
+      </div>
+      <div class="goal-reward">奖励 ${rewardToText(goal.reward || {})}</div>
+    </div>
+  `).join("");
 
-  // Progress tracks
-  dom.homeTracks.innerHTML = [
-    { label: "Progress", val: S.progress, max: 100, color: "blue" },
-    { label: "Evidence", val: S.evidence, max: 100, color: "green" },
-  ].map(t => `<div class="progress-track"><div class="stat-row">
-    <div class="stat-row-label"><span>${t.label}</span><span>${t.val}%</span></div>
-    <div class="stat-bar"><div class="stat-bar-fill fill-${t.color}" style="width:${Math.min(100,t.val)}%"></div></div>
-  </div></div>`).join("");
+  dom.homeDirection.textContent = `${S.direction.icon} ${S.direction.name} — ${S.direction.desc} · Progress ${S.progress}% · Evidence ${S.evidence}%`;
+  dom.projectTitle.textContent = S.activeProject.title;
+  dom.projectStages.innerHTML = PROJECT_STAGE_DEFS.map(def => {
+    const val = S.activeProject.stages[def.key] || 0;
+    const pct = Math.min(100, (val / (def.readyAt + 20)) * 100);
+    const ready = val >= def.readyAt;
+    return `<div class="project-stage ${ready ? "ready" : ""}">
+      <div class="stat-row-label"><span>${def.label}</span><span>${val}/${def.readyAt}</span></div>
+      <div class="stat-bar"><div class="stat-bar-fill fill-${def.color}" style="width:${pct}%"></div></div>
+      <div class="stage-note">${ready ? "可交付" : `距阈值还差 ${Math.max(0, def.readyAt - val)}`}</div>
+    </div>`;
+  }).join("");
 
   // Season info
   const season = SEASON_CONFIG[getSeasonKey()];
@@ -1354,6 +1748,7 @@ function renderHome() {
   }
   const actionsLeft = S.maxActionsPerQ - S.actionsThisQ;
   dom.seasonActions.innerHTML += `<div class="hint" style="margin-top:.5rem">本季度剩余行动: ${actionsLeft}/${S.maxActionsPerQ}</div>`;
+  dom.seasonActions.innerHTML += `<div class="hint">季度应急操作: ${S.selfCareUsed ? "已用" : "可用 1 次"}</div>`;
 
   // Event
   if (S.currentEvent && !S.eventResolved) {
@@ -1431,13 +1826,14 @@ function renderResearch() {
 
   // Papers
   dom.paperList.innerHTML = S.papers.length === 0
-    ? "<p class='hint'>还没有论文。学生写完草稿后会出现在这里。</p>"
+    ? "<p class='hint'>还没有论文。你推进主线项目，或让学生攒够进度后，草稿都会出现在这里。</p>"
     : S.papers.slice().reverse().map((p, ri) => {
       const idx = S.papers.length - 1 - ri;
       const canSubmit = p.status === "draft" && canAct();
       return `<div class="paper-item">
         <span class="paper-status ${p.status}">${p.status}</span>
         <span>${p.title}</span>
+        <span class="paper-meta">${p.author || "未知作者"} · 质量 ${p.quality ?? "?"}</span>
         ${canSubmit ? `<button class="btn-secondary" style="margin-left:auto;font-size:.75rem;padding:2px 8px" onclick="submitPaper(${idx})">投稿</button>` : ""}
       </div>`;
     }).join("");
@@ -1447,6 +1843,7 @@ function renderRivals() {
   dom.rivalGrid.innerHTML = S.rivals.map(r => {
     const myScore = S.paperCount * 10 + S.reputation;
     const rScore = r.papers * 10 + r.reputation;
+    const pct = Math.min(100, r.pipeline || 0);
     return `<div class="rival-card ${rScore > myScore ? "ahead" : ""}">
       <div class="rival-header">
         <span class="rival-avatar">${r.avatar}</span>
@@ -1454,6 +1851,8 @@ function renderRivals() {
         <span class="rival-style">${r.style}</span>
       </div>
       <div class="rival-stats">${r.papers} 篇论文 · 声望 ${r.reputation}</div>
+      <div class="stat-row-label"><span>投稿动量</span><span>${pct}/100</span></div>
+      <div class="stat-bar" style="margin:.2rem 0 .45rem"><div class="stat-bar-fill fill-red" style="width:${pct}%"></div></div>
       <div class="rival-action">${r.lastAction || "暂无动态"}</div>
     </div>`;
   }).join("");
@@ -1485,9 +1884,9 @@ function switchTab(tab) {
 
 /* ═══ HELPERS ═══ */
 function getTitle() {
+  if (S.paperCount >= 8 && S.reputation >= 30) return "教授";
   if (S.year <= 2) return "讲师";
   if (S.year <= 4 && S.paperCount >= 3) return "副教授";
-  if (S.paperCount >= 8 && S.reputation >= 30) return "教授";
   if (S.year > 2) return "讲师（焦虑中）";
   return "讲师";
 }
@@ -1526,6 +1925,17 @@ function normalizeState() {
   S.research = clamp(S.research, 0, 100);
   S.teaching = clamp(S.teaching, 0, 100);
   S.admin = clamp(S.admin, 0, 100);
+  if (S.activeProject?.stages) {
+    for (const def of PROJECT_STAGE_DEFS) {
+      S.activeProject.stages[def.key] = clamp(S.activeProject.stages[def.key] || 0, 0, 100);
+    }
+  }
+  if (Array.isArray(S.rivals)) {
+    for (const r of S.rivals) {
+      r.pipeline = clamp(r.pipeline || 0, 0, 140);
+      r.rigor = clamp(r.rigor || 0, 0, 100);
+    }
+  }
 }
 
 function toast(msg) {

@@ -90,7 +90,7 @@
         </div>
 
         <div class="stat-section">
-          <h3 class="stat-title">自我调节</h3>
+          <h3 class="stat-title">应急操作</h3>
           <div class="action-buttons" id="self-care-actions"></div>
         </div>
 
@@ -130,16 +130,21 @@
           <!-- 首页 -->
           <section class="tab-panel active" data-panel="home">
             <div class="home-grid">
-              <div class="home-card bio-card">
-                <h3>个人简介</h3>
-                <p id="home-bio"></p>
-                <blockquote id="home-quote"></blockquote>
+              <div class="home-card ops-card">
+                <h3>作战面板</h3>
+                <p id="home-brief"></p>
+                <div class="ops-alert">
+                  <h4>系统建议</h4>
+                  <p id="home-recommendation"></p>
+                </div>
+                <h4>本季度目标</h4>
+                <div class="goal-list" id="goal-list"></div>
               </div>
-              <div class="home-card direction-card">
-                <h3>研究方向</h3>
+              <div class="home-card project-card">
+                <h3>当前项目</h3>
                 <p id="home-direction"></p>
-                <h4>项目进度</h4>
-                <div class="progress-tracks" id="home-tracks"></div>
+                <h4 id="project-title"></h4>
+                <div class="project-stage-grid" id="project-stages"></div>
               </div>
               <div class="home-card season-card">
                 <h3 id="season-title">本季度</h3>
