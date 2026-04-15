@@ -341,6 +341,125 @@ const RANDOM_EVENTS = [
       { label: "画饼：你马上就能发论文了", desc: "-2 morale, 40%留住", fx: { morale: -2, _retainRoll40: true } },
     ],
   },
+  // === 学术不端相关事件 ===
+  {
+    id: "image-reuse", title: "图片疑似重复使用",
+    desc: "PubPeer 上有人匿名指出你一篇论文的 Fig.3a 和 Fig.5b 的 western blot 条带「高度相似」。实际上是学生复制粘贴时搞混了。",
+    choices: [
+      { label: "发勘误并替换图片", desc: "-3 reputation, -5 suspicion, -3 morale", fx: { reputation: -3, suspicion: -5, morale: -3 } },
+      { label: "说是「不同条件下的重复实验」", desc: "+10 suspicion", fx: { suspicion: 10 } },
+      { label: "联系期刊编辑主动说明", desc: "-5 reputation, -10 suspicion", fx: { reputation: -5, suspicion: -10 } },
+    ],
+  },
+  {
+    id: "paper-mill", title: "收到论文工厂邮件",
+    desc: "「尊敬的教授，我们可以帮您在 SCI 期刊发表论文，保证录用。价格优惠。」附件里有成功案例列表。",
+    choices: [
+      { label: "直接删除", desc: "无事发生", fx: {} },
+      { label: "举报给期刊", desc: "+3 reputation（正义感）", fx: { reputation: 3 } },
+      { label: "转发到学术群里吐槽", desc: "+2 morale", fx: { morale: 2 } },
+    ],
+  },
+  {
+    id: "self-citation-ring", title: "审稿人要求你引用他的论文",
+    desc: "审稿意见第一条：「建议作者引用以下相关工作：[1][2][3][4][5]」。你搜了一下，全是同一个人的。",
+    choices: [
+      { label: "老实加上引用", desc: "+3 progress（论文能过）, -2 morale", fx: { progress: 3, morale: -2 } },
+      { label: "在 rebuttal 里婉拒", desc: "-2 progress, +2 reputation", fx: { progress: -2, reputation: 2 } },
+      { label: "向编辑举报审稿人", desc: "+4 reputation, -5 morale（得罪人了）", fx: { reputation: 4, morale: -5 } },
+    ],
+  },
+  {
+    id: "p-hacking-discovered", title: "P值刚好 0.049",
+    desc: "学生交上来的结果 p=0.049。你让 TA 重新跑了一遍，p=0.12。TA 说「第一次才是对的」。",
+    choices: [
+      { label: "用 0.12 的结果", desc: "+5 evidence, -3 progress, -2 suspicion", fx: { evidence: 5, progress: -3, suspicion: -2 } },
+      { label: "让学生解释为什么不一样", desc: "-3 morale, +2 evidence", fx: { morale: -3, evidence: 2 } },
+      { label: "用 0.049 的结果", desc: "+3 progress, +8 suspicion", fx: { progress: 3, suspicion: 8 } },
+    ],
+  },
+  {
+    id: "ghost-authorship", title: "挂名邀请",
+    desc: "一个你根本没参与的项目，PI 发邮件问你愿不愿意挂个通讯作者。「互利互惠嘛。」",
+    choices: [
+      { label: "拒绝", desc: "+2 morale", fx: { morale: 2 } },
+      { label: "同意挂名", desc: "+1 论文, +5 suspicion, +2 reputation", fx: { reputation: 2, suspicion: 5, _freePaper: true } },
+      { label: "说要先看看稿子", desc: "-2 morale（看完发现质量堪忧）", fx: { morale: -2 } },
+    ],
+  },
+  {
+    id: "data-fabrication-suspect", title: "学生的数据太完美了",
+    desc: "连续五组实验，误差棒都小得不真实。你问学生，TA 说「我手比较稳」。",
+    choices: [
+      { label: "要求提供原始数据", desc: "-3 morale, -5 suspicion, +3 evidence", fx: { morale: -3, suspicion: -5, evidence: 3 } },
+      { label: "让 TA 重做一组你看着", desc: "-5 morale, -8 suspicion, +5 evidence", fx: { morale: -5, suspicion: -8, evidence: 5 } },
+      { label: "不想知道真相", desc: "+10 suspicion", fx: { suspicion: 10 } },
+    ],
+  },
+  // === AI 吐槽事件 ===
+  {
+    id: "chatgpt-in-class", title: "学生用 ChatGPT 写作业",
+    desc: "你布置的课程论文，全班 30 人有 25 份的开头都是「随着人工智能技术的快速发展」。",
+    choices: [
+      { label: "全部打回重写", desc: "-8 morale, +3 teaching", fx: { morale: -8, _boostTeaching: 3 } },
+      { label: "改成口头报告考核", desc: "-4 morale, +2 teaching", fx: { morale: -4, _boostTeaching: 2 } },
+      { label: "算了，你自己也在用", desc: "-2 morale, +3 suspicion", fx: { morale: -2, suspicion: 3 } },
+    ],
+  },
+  {
+    id: "ai-reviewer", title: "审稿人用 AI 写的审稿意见",
+    desc: "审稿意见开头：「This paper presents an interesting approach...」后面是五段完美的废话，没有一条具体意见。",
+    choices: [
+      { label: "写一封认真的 rebuttal", desc: "-3 morale, +2 progress", fx: { morale: -3, progress: 2 } },
+      { label: "也用 AI 写 rebuttal", desc: "-3 tokens, +3 progress, +3 suspicion", fx: { tokens: -3, progress: 3, suspicion: 3 } },
+      { label: "向编辑投诉审稿质量", desc: "-2 morale, +2 reputation", fx: { morale: -2, reputation: 2 } },
+    ],
+  },
+  {
+    id: "benchmark-cherry", title: "Benchmark 该选哪组",
+    desc: "你跑了 10 组实验，其中 2 组效果特别好，8 组一般。学生问「老师，我们放哪几组进论文？」",
+    choices: [
+      { label: "全放，老实报告", desc: "+6 evidence, -3 progress, -3 suspicion", fx: { evidence: 6, progress: -3, suspicion: -3 } },
+      { label: "放 5 组包括好的和一般的", desc: "+3 evidence, +2 progress", fx: { evidence: 3, progress: 2 } },
+      { label: "只放最好的 2 组", desc: "+5 progress, +8 suspicion", fx: { progress: 5, suspicion: 8 } },
+    ],
+  },
+  {
+    id: "open-source-demand", title: "有人要你开源代码",
+    desc: "论文发表后，GitHub issue 上来了一条：「请问代码什么时候开源？」下面已经有 47 个 +1。",
+    choices: [
+      { label: "花时间整理后开源", desc: "-5 morale, +6 reputation, -5 suspicion", fx: { morale: -5, reputation: 6, suspicion: -5 } },
+      { label: "说「正在整理中」然后鸽了", desc: "-2 reputation, +3 suspicion", fx: { reputation: -2, suspicion: 3 } },
+      { label: "说代码涉及专利不便公开", desc: "-3 reputation", fx: { reputation: -3 } },
+    ],
+  },
+  {
+    id: "funding-misuse-scare", title: "财务审计来了",
+    desc: "学校财务处通知：对近三年科研经费使用进行专项审计。你突然想起来去年报了一笔「学术会议注册费」其实是...",
+    choices: [
+      { label: "赶紧补齐所有票据", desc: "-5 morale, -2 funding", fx: { morale: -5, funding: -2 } },
+      { label: "找财务老师喝茶沟通", desc: "-3 morale, -1 funding", fx: { morale: -3, funding: -1 } },
+      { label: "你的经费用得很规范", desc: "无事发生（如果你真的规范的话）", fx: {} },
+    ],
+  },
+  {
+    id: "student-ai-dependency", title: "学生完全依赖 AI",
+    desc: "你发现学生连 for 循环都要问 ChatGPT。TA 说「这样效率高」。你说那你到底学了什么。TA 说「prompt engineering」。",
+    choices: [
+      { label: "禁止使用 AI 一个月", desc: "-5 morale, +3 evidence, +3 teaching", fx: { morale: -5, evidence: 3, _boostTeaching: 3 } },
+      { label: "要求先手写再用 AI 优化", desc: "-2 morale, +2 evidence", fx: { morale: -2, evidence: 2 } },
+      { label: "随 TA 去吧", desc: "+3 suspicion", fx: { suspicion: 3 } },
+    ],
+  },
+  {
+    id: "viral-paper", title: "你的论文在社交媒体火了",
+    desc: "一个科技博主转发了你的论文，点赞 2w+。评论区一半说「太强了」一半说「这不就是调参吗」。",
+    choices: [
+      { label: "趁热打铁做科普", desc: "+6 reputation, -3 morale", fx: { reputation: 6, morale: -3 } },
+      { label: "低调不回应", desc: "+1 reputation", fx: { reputation: 1 } },
+      { label: "在评论区和人对线", desc: "+3 reputation, -5 morale, +2 suspicion", fx: { reputation: 3, morale: -5, suspicion: 2 } },
+    ],
+  },
 ];
 
 const STUDENT_TROUBLE_EVENTS = [
@@ -392,6 +511,21 @@ const NEWS_TEMPLATES = [
   "📰 AI+Science 专项基金发布，评审专家平均年龄 65 岁",
   "📰 Arxiv 日均提交量突破 1000 篇，其中 AI 辅助占比 60%",
   "📰 某组学生集体用 ChatGPT 写周报，导师看了三个月才发现",
+  "📰 PubPeer 新增举报量同比增长 300%，AI 生成图片成重灾区",
+  "📰 某期刊编辑部声明：将使用 AI 检测工具筛查投稿（该工具误报率 40%）",
+  "📰 热搜：#博士生用AI写论文被开除# 评论区：「我们都在用，只是被抓的不多」",
+  "📰 某教授在组会上说「AI 写的东西一眼就能看出来」，然后念了一段自己用 AI 写的基金本子",
+  "📰 统计显示：AI 论文平均审稿时间从 3 个月缩短到 3 周（因为审稿人也在用 AI）",
+  "📰 某实验室 GPU 集群起火，损失 200 万。消防报告：散热不足",
+  "📰 学术推特今日最热：「为什么我的学生觉得 prompt engineering 是一种编程语言」",
+  "📰 某顶会论文 related work 部分被发现有 4 篇不存在的引用，作者回应：「是 AI 自己加的」",
+  "📰 Nature 子刊发现一篇论文的实验图片与另一篇完全相同但做了镜像翻转",
+  "📰 某大学规定：学位论文答辩时不得使用任何 AI 辅助工具（包括 PPT 自动排版）",
+  "📰 AI 论文数量过多，某顶会审稿人人均分配 8 篇，审稿质量断崖式下降",
+  "📰 某青椒在朋友圈感叹「我的学生比我还会用 AI，但 TA 连假设检验都不会」",
+  "📰 Paper mill 产业链被曝光：从选题到投稿全流程 AI 化，一篇只要 5000 元",
+  "📰 某审稿人在意见里写道：「This paper reads like it was written by ChatGPT」——讽刺的是审稿意见本身也是 ChatGPT 写的",
+  "📰 某组发现竞争对手的开源代码里有一行注释：// Generated by Claude, do not modify",
 ];
 
 const BIOS = [
@@ -925,6 +1059,12 @@ function handleSpecialFx(key, val) {
       if (active.length) { active[active.length - 1].quit = true; addNews(`饼没画住，学生走了。`); }
     } else { addNews("学生暂时被画饼稳住了。"); }
   }
+  if (key === "_freePaper") {
+    const paper = { title: generatePaperTitle(), status: "published", quality: rand(20, 40), author: "挂名", quarter: getFullLabel() };
+    S.papers.push(paper);
+    S.paperCount++;
+    addNews(`挂名论文「${paper.title}」发表了。你的贡献是：提供了通讯作者的名字。`);
+  }
 }
 
 function applyGrant() {
@@ -986,17 +1126,31 @@ function recruitStudent() {
 function selfCare(type) {
   if (type === "walk") {
     S.morale = Math.min(100, S.morale + 5);
-    if (Math.random() < 0.2) {
-      S.morale += 3;
-      toast("散步时突然有了灵感！morale +8");
+    const r = Math.random();
+    if (r < 0.15) {
+      S.morale += 5;
+      toast("散步时突然有了灵感！morale +10");
+    } else if (r < 0.25) {
+      toast("在校园里遇到了院长，被问「最近论文怎么样」。morale +2");
+      S.morale = Math.min(100, S.morale - 3);
     } else {
       toast("校园漫步：morale +5");
     }
   } else if (type === "massage") {
-    if (S.funding < 1) { toast("没钱了..."); return; }
-    S.funding -= 1;
+    // 自费！不能用科研经费！
     S.morale = Math.min(100, S.morale + 15);
-    toast("全身按摩：morale +15, funding -1");
+    toast("自费按摩：morale +15（自掏腰包，心安理得）");
+  } else if (type === "hotpot") {
+    // 请学生吃火锅
+    if (S.funding < 2) { toast("经费不够请客..."); return; }
+    const activeStudents = S.students.filter(s => !s.graduated && !s.quit);
+    if (!activeStudents.length) { toast("没有学生可以请..."); return; }
+    S.funding -= 2;
+    S.morale = Math.min(100, S.morale + 8);
+    // Students also get a boost (reduced trouble chance next quarter)
+    for (const s of activeStudents) s._fedLastQ = true;
+    toast("请学生吃火锅：morale +8, funding -2（这个可以报销）");
+    addNews(`${S.name}老师请全组吃了顿火锅。学生们表示「老师真好」（吃完继续摸鱼）。`);
   } else if (type === "retract") {
     const published = S.papers.filter(p => p.status === "published");
     if (!published.length) { toast("没有可以撤的论文"); return; }
@@ -1006,6 +1160,23 @@ function selfCare(type) {
     S.reputation -= 5;
     addNews(`主动撤回论文「${worst.title}」。学术圈表示「至少态度端正」。`);
     toast("撤稿：suspicion -15, reputation -5");
+  } else if (type === "complain") {
+    // 发朋友圈吐槽
+    S.morale = Math.min(100, S.morale + 3);
+    const complaints = [
+      "发了一条朋友圈：「科研使我快乐.jpg」（设置了仅自己可见）",
+      "在学术吐槽群里发了一段话，获得 37 个「深有同感」",
+      "匿名在小红书发了一篇「青椒的一天」，阅读量 10w+",
+      "在 Twitter 上用小号吐槽了审稿人，被同事截图了",
+      "写了一篇「为什么我不建议读博」然后删了",
+    ];
+    const msg = sample(complaints);
+    addNews(msg);
+    toast("精神胜利法：morale +3");
+    if (Math.random() < 0.1) {
+      S.reputation -= 2;
+      toast("但是被同事看到了... reputation -2");
+    }
   }
   saveState();
   renderAll();
@@ -1132,7 +1303,9 @@ function renderProfile() {
   // Self care
   dom.selfCareActions.innerHTML = `
     <button class="btn-action" data-care="walk"><span class="action-icon">🚶</span><span class="action-label">校园漫步</span><span class="action-cost">免费</span></button>
-    <button class="btn-action" data-care="massage"><span class="action-icon">💆</span><span class="action-label">按摩放松</span><span class="action-cost">¥1万</span></button>
+    <button class="btn-action" data-care="massage"><span class="action-icon">💆</span><span class="action-label">自费按摩</span><span class="action-cost">自掏腰包</span></button>
+    <button class="btn-action" data-care="hotpot"><span class="action-icon">🍲</span><span class="action-label">请学生吃火锅</span><span class="action-cost">¥2万</span></button>
+    <button class="btn-action" data-care="complain"><span class="action-icon">😤</span><span class="action-label">发朋友圈吐槽</span><span class="action-cost">免费</span></button>
     <button class="btn-action" data-care="retract"><span class="action-icon">📝</span><span class="action-label">撤稿止损</span><span class="action-cost">rep -5</span></button>
   `;
   for (const btn of dom.selfCareActions.querySelectorAll("[data-care]")) {
