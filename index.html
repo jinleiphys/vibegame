@@ -3,172 +3,240 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>vibe科研牌桌 · Research Tactics Roguelite</title>
-  <meta name="description" content="在学术丛林里活下来：出牌、抢资源、管学生、打败对手组，在聘期结束前把项目做出来。">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d1117'/%3E%3Ctext x='32' y='44' font-size='36' text-anchor='middle' fill='%2358a6ff'%3E🔬%3C/text%3E%3C/svg%3E">
+  <title>AI科研生存模拟器 - 新时代青椒的挣扎</title>
+  <meta name="description" content="在AI时代做科研：学生坑你tokens，AI坑你evidence，对手抢你论文。你能活过聘期吗？">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%231e3a5f'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white'%3E🎓%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <!-- ═══ Floating number popups layer ═══ -->
-  <div id="popup-layer" class="popup-layer"></div>
 
-  <!-- ═══ Screen shake wrapper ═══ -->
-  <div id="shake-wrapper" class="shake-wrapper">
+  <!-- ═══ START: 教职申请页 ═══ -->
+  <div id="start-screen" class="screen">
+    <div class="browser-chrome">
+      <div class="chrome-dots"><span></span><span></span><span></span></div>
+      <div class="chrome-url">https://hr.ai-university.edu.cn/apply</div>
+    </div>
+    <div class="portal-layout">
+      <aside class="portal-sidebar">
+        <div class="portal-logo">🏛️</div>
+        <h1 class="portal-brand">AI大学<br><small>教职申请系统</small></h1>
+        <p class="portal-copy">Faculty Recruitment Portal</p>
+        <p class="portal-fine">© 2026 AI University HR</p>
+      </aside>
+      <main class="portal-main">
+        <h2 class="portal-title">申请 Tenure-Track 职位</h2>
+        <p class="portal-sub">请选择您的研究方向，开始您的 AI 时代科研生涯。</p>
 
-    <!-- ═══════════ START SCREEN ═══════════ -->
-    <div id="start-screen" class="overlay-screen">
-      <div class="start-panel">
-        <p class="kicker">Research Tactics Roguelite</p>
-        <h1 class="game-title">vibe<span class="accent">科研</span>牌桌</h1>
-        <p class="start-desc">
-          学术丛林生存指南。每周抽牌、出牌、和对手组抢资源，管住你那些坑到离谱的学生，
-          在聘期归零前把项目做出来。
-        </p>
-
-        <div class="start-stats">
-          <div class="stat-chip"><span>Core Loop</span><strong>抽牌 → 出牌 → 竞争 → 结算</strong></div>
-          <div class="stat-chip"><span>Run</span><strong>16 周</strong></div>
-          <div class="stat-chip"><span>Rivals</span><strong>3 个对手组</strong></div>
-          <div class="stat-chip"><span>Goal</span><strong>活过聘期，做出成果</strong></div>
+        <div class="form-section">
+          <label class="form-label">0. 个人信息</label>
+          <div class="identity-row">
+            <span class="identity-name" id="player-name">张三丰</span>
+            <span class="identity-title">老师</span>
+            <button class="btn-link" id="btn-reroll-name">🎲 随机</button>
+          </div>
         </div>
 
-        <h2 class="section-title">选一个开局流派</h2>
-        <p class="section-sub">流派决定起始牌组、资源和被动能力。</p>
-        <div id="doctrine-grid" class="doctrine-grid"></div>
-
-        <div class="start-actions">
-          <button id="btn-continue" class="btn btn-ghost" style="display:none">继续上次</button>
-          <button id="btn-wipe" class="btn btn-danger" style="display:none">清空存档</button>
+        <div class="form-section">
+          <label class="form-label">1. 选择研究方向</label>
+          <div class="direction-grid" id="direction-grid"></div>
         </div>
-        <p id="meta-line" class="meta-line"></p>
-      </div>
+
+        <div class="form-section">
+          <label class="form-label">2. 选择起步策略</label>
+          <p class="form-hint">策略决定您的初始资源和可用工具。</p>
+          <div class="strategy-grid" id="strategy-grid"></div>
+        </div>
+
+        <div class="form-section form-actions">
+          <button class="btn-submit" id="btn-start" disabled>提交申请 →</button>
+          <p class="form-fine">点击提交即代表您同意本校「非升即走」协议。</p>
+        </div>
+
+        <div class="save-row" id="save-row" style="display:none">
+          <button class="btn-link" id="btn-continue">📂 继续上次进度</button>
+          <button class="btn-link btn-danger-link" id="btn-wipe">🗑️ 清空存档</button>
+        </div>
+
+        <p class="meta-line" id="meta-line"></p>
+      </main>
+    </div>
+  </div>
+
+  <!-- ═══ GAME: 主界面 ═══ -->
+  <div id="game-screen" class="screen hidden">
+    <div class="browser-chrome">
+      <div class="chrome-dots"><span></span><span></span><span></span></div>
+      <div class="chrome-url" id="game-url">https://faculty.ai-university.edu.cn/~张三丰</div>
     </div>
 
-    <!-- ═══════════ DRAFT SCREEN ═══════════ -->
-    <div id="draft-screen" class="overlay-screen hidden">
-      <div class="draft-panel">
-        <p class="kicker" id="draft-kicker">Week Reward</p>
-        <h2 id="draft-title">选一张加入牌组</h2>
-        <p class="draft-desc" id="draft-desc">从下面选 1 张永久加入你的牌堆，或者跳过。</p>
-        <div id="draft-grid" class="draft-grid"></div>
-        <button id="btn-skip-draft" class="btn btn-ghost">跳过</button>
-      </div>
-    </div>
+    <div class="game-layout">
+      <!-- 左侧: 个人面板 -->
+      <aside class="profile-sidebar" id="profile-sidebar">
+        <div class="profile-avatar" id="profile-avatar">👩‍🔬</div>
+        <h2 class="profile-name" id="profile-name">张三丰 老师</h2>
+        <div class="profile-meta">
+          <span id="profile-title">讲师</span> · <span id="profile-dept">AI学院</span>
+        </div>
+        <div class="profile-meta" id="profile-year">第1年 Q1</div>
 
-    <!-- ═══════════ STUDENT EVENT SCREEN ═══════════ -->
-    <div id="student-event-screen" class="overlay-screen hidden">
-      <div class="student-event-panel">
-        <p class="kicker">🎓 学生事故</p>
-        <h2 id="student-event-title"></h2>
-        <p id="student-event-desc" class="student-event-desc"></p>
-        <div id="student-event-choices" class="student-event-choices"></div>
-      </div>
-    </div>
+        <div class="stat-section">
+          <h3 class="stat-title">资源</h3>
+          <div class="stat-bar-group" id="resource-bars"></div>
+        </div>
 
-    <!-- ═══════════ END SCREEN ═══════════ -->
-    <div id="end-screen" class="overlay-screen hidden">
+        <div class="stat-section">
+          <h3 class="stat-title">能力</h3>
+          <div class="stat-bar-group" id="ability-bars"></div>
+        </div>
+
+        <div class="stat-section">
+          <h3 class="stat-title">自我调节</h3>
+          <div class="action-buttons" id="self-care-actions"></div>
+        </div>
+
+        <div class="stat-section">
+          <h3 class="stat-title">成就</h3>
+          <div class="achievement-row">
+            <span id="stat-papers">0</span> 篇论文 · <span id="stat-graduated">0</span> 位毕业生
+          </div>
+        </div>
+      </aside>
+
+      <!-- 右侧: 主内容区 -->
+      <main class="main-content">
+        <!-- 顶部: 信息栏 -->
+        <header class="top-bar">
+          <div class="top-bar-left">
+            <h1 id="top-name">张三丰 老师</h1>
+            <span class="top-meta" id="top-meta">讲师, AI学院</span>
+          </div>
+          <div class="top-bar-right">
+            <span class="quarter-badge" id="quarter-badge">1年 Q1</span>
+            <button class="btn-primary" id="btn-end-quarter">结束本季度 →</button>
+          </div>
+        </header>
+
+        <!-- Tab 导航 -->
+        <nav class="tab-nav" id="tab-nav">
+          <button class="tab-btn active" data-tab="home">首页</button>
+          <button class="tab-btn" data-tab="team">团队 <span class="tab-badge" id="team-count">0</span></button>
+          <button class="tab-btn" data-tab="research">科研</button>
+          <button class="tab-btn" data-tab="rivals">竞争</button>
+          <button class="tab-btn" data-tab="news">新闻</button>
+        </nav>
+
+        <!-- Tab 内容 -->
+        <div class="tab-content">
+          <!-- 首页 -->
+          <section class="tab-panel active" data-panel="home">
+            <div class="home-grid">
+              <div class="home-card bio-card">
+                <h3>个人简介</h3>
+                <p id="home-bio"></p>
+                <blockquote id="home-quote"></blockquote>
+              </div>
+              <div class="home-card direction-card">
+                <h3>研究方向</h3>
+                <p id="home-direction"></p>
+                <h4>项目进度</h4>
+                <div class="progress-tracks" id="home-tracks"></div>
+              </div>
+              <div class="home-card season-card">
+                <h3 id="season-title">本季度</h3>
+                <p id="season-desc"></p>
+                <div class="season-actions" id="season-actions"></div>
+              </div>
+              <div class="home-card event-card" id="event-card" style="display:none">
+                <h3 id="event-title"></h3>
+                <p id="event-desc"></p>
+                <div class="event-choices" id="event-choices"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 团队 -->
+          <section class="tab-panel" data-panel="team">
+            <div class="team-header">
+              <h2>实验室成员</h2>
+              <button class="btn-secondary" id="btn-recruit" style="display:none">🎓 招收新生</button>
+            </div>
+            <div class="team-grid" id="team-grid"></div>
+            <div class="team-empty" id="team-empty">
+              <p>实验室暂无成员。</p>
+              <p class="hint">招生季（Q3秋季）可以面试和招收学生。</p>
+            </div>
+          </section>
+
+          <!-- 科研 -->
+          <section class="tab-panel" data-panel="research">
+            <div class="research-grid">
+              <div class="research-card">
+                <h3>AI 工具箱</h3>
+                <p class="hint">用 tokens 驱动 AI 加速科研。效率很高。</p>
+                <div class="tool-list" id="ai-tools"></div>
+              </div>
+              <div class="research-card">
+                <h3>传统科研</h3>
+                <p class="hint">费时但可靠的老办法。</p>
+                <div class="tool-list" id="trad-tools"></div>
+              </div>
+              <div class="research-card">
+                <h3>论文管理</h3>
+                <p class="hint">你的学术产出记录。</p>
+                <div class="paper-list" id="paper-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 竞争 -->
+          <section class="tab-panel" data-panel="rivals">
+            <h2>同行动态</h2>
+            <p class="hint">关注竞争对手的进展。他们不会等你。</p>
+            <div class="rival-grid" id="rival-grid"></div>
+          </section>
+
+          <!-- 新闻 -->
+          <section class="tab-panel" data-panel="news">
+            <h2>学术头条</h2>
+            <div class="news-feed" id="news-feed"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: 事件弹窗 ═══ -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal-panel" id="modal-panel">
+      <h2 id="modal-title"></h2>
+      <p id="modal-desc"></p>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══ END SCREEN ═══ -->
+  <div id="end-screen" class="screen hidden">
+    <div class="browser-chrome">
+      <div class="chrome-dots"><span></span><span></span><span></span></div>
+      <div class="chrome-url">https://hr.ai-university.edu.cn/evaluation</div>
+    </div>
+    <div class="end-layout">
       <div class="end-panel">
-        <p class="kicker">Run Complete</p>
-        <h2 id="end-title"></h2>
+        <h1 id="end-title"></h1>
         <p id="end-copy" class="end-copy"></p>
-        <div id="end-stats" class="end-stats"></div>
-        <div id="end-rival-summary" class="end-rival-summary"></div>
-        <div class="start-actions">
-          <button id="btn-restart" class="btn btn-primary">再开一局</button>
-          <button id="btn-copy-summary" class="btn btn-ghost">复制战报</button>
+        <div class="end-stats" id="end-stats"></div>
+        <div class="end-ranking" id="end-ranking"></div>
+        <div class="end-actions">
+          <button class="btn-submit" id="btn-restart">重新申请</button>
+          <button class="btn-link" id="btn-copy-report">📋 复制评估报告</button>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ═══════════ GAME HUD ═══════════ -->
-    <header id="game-hud" class="hud hidden">
-      <div class="hud-left">
-        <span class="hud-brand">vibe科研牌桌</span>
-        <span class="hud-week" id="hud-week">Week 1 / 16</span>
-      </div>
-      <div class="hud-resources" id="hud-resources"></div>
-      <div class="hud-right">
-        <span class="hud-actions" id="hud-actions">Actions: 3/3</span>
-        <span class="hud-doctrine" id="hud-doctrine"></span>
-      </div>
-    </header>
-
-    <!-- ═══════════ MAIN GAME AREA ═══════════ -->
-    <main id="game-main" class="game-main hidden">
-
-      <!-- Left: Rivals -->
-      <aside class="rivals-panel">
-        <h3 class="panel-title">对手实验室</h3>
-        <div id="rivals-list" class="rivals-list"></div>
-      </aside>
-
-      <!-- Center: Event + Play area -->
-      <section class="center-stage">
-        <!-- Weekly event -->
-        <div class="event-card" id="event-card">
-          <div class="event-header">
-            <span class="event-kicker" id="event-kicker"></span>
-            <span class="event-week" id="event-week-badge"></span>
-          </div>
-          <h2 class="event-title" id="event-title"></h2>
-          <p class="event-copy" id="event-copy"></p>
-          <div class="event-choices" id="event-choices"></div>
-        </div>
-
-        <!-- Played cards area -->
-        <div class="played-area">
-          <div class="played-label">已出手牌 <span id="played-count">0/3</span></div>
-          <div class="played-grid" id="played-grid"></div>
-        </div>
-
-        <!-- Resolve button -->
-        <div class="resolve-bar">
-          <button id="btn-resolve" class="btn btn-primary btn-resolve" disabled>结算本周</button>
-          <button id="btn-undo" class="btn btn-ghost btn-small">撤回</button>
-        </div>
-      </section>
-
-      <!-- Right: Project + Students + Info -->
-      <aside class="info-panel">
-        <div class="project-card">
-          <h3 class="panel-title">当前项目</h3>
-          <h4 id="project-title" class="project-title"></h4>
-          <p id="project-field" class="project-field"></p>
-          <div class="track" id="track-progress">
-            <div class="track-label"><span>Progress</span><span id="progress-val">0</span></div>
-            <div class="track-bar"><div class="track-fill" id="progress-fill"></div></div>
-          </div>
-          <div class="track" id="track-evidence">
-            <div class="track-label"><span>Evidence</span><span id="evidence-val">0</span></div>
-            <div class="track-bar"><div class="track-fill evidence-fill" id="evidence-fill"></div></div>
-          </div>
-        </div>
-
-        <div class="students-card">
-          <h3 class="panel-title">实验室成员 <span id="student-mood" class="student-mood"></span></h3>
-          <div id="students-list" class="students-list"></div>
-        </div>
-
-        <div class="deck-info-card">
-          <h3 class="panel-title">牌堆信息</h3>
-          <div class="deck-counts" id="deck-counts"></div>
-        </div>
-
-        <div class="log-card">
-          <h3 class="panel-title">记录</h3>
-          <div id="log-list" class="log-list"></div>
-        </div>
-      </aside>
-    </main>
-
-    <!-- ═══════════ HAND (bottom bar) ═══════════ -->
-    <div id="hand-bar" class="hand-bar hidden">
-      <div class="hand-fan" id="hand-fan"></div>
-    </div>
-
-  </div><!-- /shake-wrapper -->
-
+  <!-- Toast -->
   <div id="toast" class="toast hidden"></div>
+
   <script src="./app.js"></script>
 </body>
 </html>
