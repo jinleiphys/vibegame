@@ -51,27 +51,27 @@ const CARDS = {
   // === AI TOOLS (high power, high risk) ===
   aiDraft: {
     id: "aiDraft", name: "AI 写稿", type: "research",
-    copy: "它写得又快又顺，顺到你忘了检查它是不是在编。",
+    copy: "速度很快。非常快。",
     cost: { tokens: 8 }, effect: { progress: 14, risk: 10, evidence: -2 },
   },
   aiCodeGen: {
     id: "aiCodeGen", name: "AI 生成代码", type: "infra",
-    copy: "一个下午的量它十分钟出完了。但你花了三天 debug。",
+    copy: "十分钟出完一个下午的量。",
     cost: { tokens: 10, compute: 3 }, effect: { progress: 12, risk: 8 },
   },
   aiLitReview: {
     id: "aiLitReview", name: "AI 文献综述", type: "research",
-    copy: "引用格式完美，就是有三篇文献不存在。",
+    copy: "引用格式很规范，看起来很专业。",
     cost: { tokens: 6 }, effect: { progress: 8, evidence: 4, risk: 7 },
   },
   aiDataAnalysis: {
     id: "aiDataAnalysis", name: "AI 数据分析", type: "research",
-    copy: "它会给你一个漂亮的结论，附带一个你没注意到的 p-hacking。",
+    copy: "结论很清晰，图表也很漂亮。",
     cost: { tokens: 7, compute: 4 }, effect: { evidence: 8, progress: 6, risk: 9 },
   },
   aiRebuttal: {
     id: "aiRebuttal", name: "AI 写 Rebuttal", type: "research",
-    copy: "审稿人说的每一点它都能回，但它回的方式有时候是在编新实验。",
+    copy: "审稿人提的每一条它都给出了回应。",
     cost: { tokens: 5 }, effect: { progress: 6, reputation: 3, risk: 6 },
   },
 
@@ -98,7 +98,7 @@ const CARDS = {
   },
   goFullAI: {
     id: "goFullAI", name: "全面转向 AI", type: "gambit",
-    copy: "你决定不再依赖学生了。从现在开始，你和 AI 单挑这个世界。",
+    copy: "解散实验室，一个人干。也许更高效，也许不是。",
     cost: { morale: 5, reputation: -3 }, effect: { _special: "goFullAI" },
   },
 
@@ -194,9 +194,9 @@ const DOCTRINES = [
   },
   {
     id: "ai-maximalist", name: "AI 极端主义者", engine: "Token Burner",
-    copy: "学生？不需要。你相信 AI 能搞定一切。代价是你的 token 账单和翻车风险。",
+    copy: "学生？不需要。你相信 AI 能搞定一切。效率很高——理论上。",
     passiveName: "Full Stack AI",
-    passiveCopy: "AI 牌的 token 消耗 -2，但起始 risk +10。",
+    passiveCopy: "AI 牌的 token 消耗 -2。无起始学生。",
     start: { cash: 18, tokens: 30, compute: 16, morale: 55, reputation: 5, risk: 25 },
     project: { progress: 8, evidence: 8 },
     extraCards: ["aiDraft", "aiCodeGen", "aiLitReview", "aiDataAnalysis"],
@@ -218,8 +218,8 @@ const DOCTRINES = [
 const STUDENT_TEMPLATES = {
   normal: {
     names: ["小张", "小李", "小王", "小陈", "小林", "小赵"],
-    trait: "正常发挥",
-    traitDesc: "偶尔能干活，偶尔摸鱼",
+    trait: "看起来挺正常的",
+    traitDesc: "简历上写了很多项目经验",
     icon: "🧑‍🎓",
     weeklyOutput: { progress: 2, evidence: 1 },
     weeklyCost: { tokens: 2, compute: 1 },
@@ -227,10 +227,10 @@ const STUDENT_TEMPLATES = {
     troubleEvents: ["摸鱼了一整周", "论文写了一半去打游戏了"],
   },
   sloppy: {
-    names: ["小刘·粗心版", "小杨·随缘版", "小周·差不多版"],
-    trait: "手滑型选手",
-    traitDesc: "产出有但经常需要返工，消耗额外 tokens",
-    icon: "🫠",
+    names: ["小刘", "小杨", "小周"],
+    trait: "自称细心",
+    traitDesc: "面试时说自己「注重细节」",
+    icon: "🧑‍💻",
     weeklyOutput: { progress: 3, evidence: -1 },
     weeklyCost: { tokens: 5, compute: 2 },
     troubleChance: 0.3,
@@ -241,10 +241,10 @@ const STUDENT_TEMPLATES = {
     ],
   },
   burner: {
-    names: ["小吴·烧钱版", "小孙·GPU杀手", "小何·算力黑洞"],
-    trait: "算力黑洞",
-    traitDesc: "能出活但会把 GPU 额度一周烧空",
-    icon: "🔥",
+    names: ["小吴", "小孙", "小何"],
+    trait: "动手能力强",
+    traitDesc: "特别喜欢跑实验，停不下来",
+    icon: "💪",
     weeklyOutput: { progress: 4, evidence: 2 },
     weeklyCost: { tokens: 3, compute: 6 },
     troubleChance: 0.25,
@@ -255,10 +255,10 @@ const STUDENT_TEMPLATES = {
     ],
   },
   ghost: {
-    names: ["小马·隐身版", "小郑·蒸发版", "小黄·量子态"],
-    trait: "量子态学生",
-    traitDesc: "观测时存在，不观测时蒸发。产出极不稳定",
-    icon: "👻",
+    names: ["小马", "小郑", "小黄"],
+    trait: "有想法",
+    traitDesc: "说对这个方向很感兴趣",
+    icon: "🤔",
     weeklyOutput: { progress: 0, evidence: 0 },
     weeklyCost: { tokens: 1, compute: 1 },
     troubleChance: 0.5,
@@ -270,10 +270,10 @@ const STUDENT_TEMPLATES = {
     ],
   },
   faker: {
-    names: ["小钱·美化版", "小冯·P值猎人"],
-    trait: "结果美化师",
-    traitDesc: "数据永远漂亮，漂亮到不真实",
-    icon: "🎭",
+    names: ["小钱", "小冯"],
+    trait: "结果总是很好",
+    traitDesc: "每次汇报数据都很漂亮",
+    icon: "📊",
     weeklyOutput: { progress: 5, evidence: -3 },
     weeklyCost: { tokens: 3, compute: 2 },
     troubleChance: 0.35,
@@ -341,15 +341,86 @@ const RIVALS = [
   },
 ];
 
-/* ─── Weekly Events ─── */
-const EVENTS = [
+/* ─── Weekly Events (phased) ─── */
+
+// Week 1: always this opening event
+const OPENING_EVENT = {
+  id: "opening", kicker: "New Semester", title: "新学期，新项目",
+  copy: "你拿到了启动经费，项目正式立项。第一周的重点是搭好基础设施：招人、买算力、理清方向。",
+  choices: [
+    { label: "先把算力和 tokens 买齐", desc: "+10 tokens, +6 compute, -8 cash", fx: { tokens: 10, compute: 6, cash: -8 } },
+    { label: "先招一个靠谱的学生", desc: "招一个新学生, +5 morale", fx: { morale: 5, _special: "hireStudent" } },
+    { label: "先做文献调研定方向", desc: "+6 evidence, +3 progress", fx: { evidence: 6, progress: 3 } },
+  ],
+};
+
+// Early events (week 2-4): setup phase, lighter stakes
+const EARLY_EVENTS = [
+  {
+    id: "initial-budget", kicker: "Admin", title: "院里下发了额外经费",
+    copy: "好消息：你的项目被列入了重点支持名单。坏消息：要写一份详细的计划书。",
+    choices: [
+      { label: "认真写计划书", desc: "+12 cash, -2 morale, +2 reputation", fx: { cash: 12, morale: -2, reputation: 2 } },
+      { label: "让 AI 帮你写", desc: "+12 cash, -4 tokens, +3 risk", fx: { cash: 12, tokens: -4, risk: 3 } },
+      { label: "随便写写交差", desc: "+8 cash, +2 risk", fx: { cash: 8, risk: 2 } },
+    ],
+  },
+  {
+    id: "gpu-setup", kicker: "Infrastructure", title: "算力平台选型",
+    copy: "你需要决定实验室用哪家的 GPU。便宜的不稳定，稳定的不便宜。",
+    choices: [
+      { label: "选贵的大厂云", desc: "-6 cash, +10 compute, 稳定", fx: { cash: -6, compute: 10 } },
+      { label: "选便宜的小平台", desc: "-3 cash, +8 compute, +4 risk", fx: { cash: -3, compute: 8, risk: 4 } },
+      { label: "先蹭同事的额度", desc: "+4 compute, -2 reputation", fx: { compute: 4, reputation: -2 } },
+    ],
+  },
+  {
+    id: "api-shopping", kicker: "Tools", title: "该买哪家的 API",
+    copy: "市面上模型那么多，你需要决定把 token 预算花在谁身上。",
+    choices: [
+      { label: "买最强的模型", desc: "-8 cash, +15 tokens (高质量)", fx: { cash: -8, tokens: 15 } },
+      { label: "买便宜的够用就行", desc: "-4 cash, +12 tokens, +3 risk", fx: { cash: -4, tokens: 12, risk: 3 } },
+      { label: "先用免费额度试试", desc: "+5 tokens, +2 risk", fx: { tokens: 5, risk: 2 } },
+    ],
+  },
+  {
+    id: "first-meeting", kicker: "Lab", title: "第一次组会",
+    copy: "你召集所有人开了第一次组会。气氛还不错，但你能感觉到有些人心不在焉。",
+    choices: [
+      { label: "明确分工和 deadline", desc: "+4 progress, +3 evidence, -3 morale", fx: { progress: 4, evidence: 3, morale: -3 } },
+      { label: "先聊聊愿景画画饼", desc: "+8 morale, +1 reputation", fx: { morale: 8, reputation: 1 } },
+      { label: "直接分配任务不废话", desc: "+5 progress, -5 morale", fx: { progress: 5, morale: -5 } },
+    ],
+  },
+  {
+    id: "literature-gap", kicker: "Research", title: "文献综述发现了空白",
+    copy: "你在做文献调研时发现了一个没人做过的方向。这可能是金矿，也可能是坑。",
+    choices: [
+      { label: "立刻 pivot 过去", desc: "+8 progress, +5 risk", fx: { progress: 8, risk: 5 } },
+      { label: "先做小实验验证", desc: "+4 evidence, +3 progress, -3 compute", fx: { evidence: 4, progress: 3, compute: -3 } },
+      { label: "记下来以后再说", desc: "+2 evidence", fx: { evidence: 2 } },
+    ],
+  },
+  {
+    id: "recruit-fair", kicker: "Lab", title: "招生季来了",
+    copy: "好几个学生来面试。简历都很漂亮——但简历都很漂亮。",
+    choices: [
+      { label: "招那个最积极的", desc: "招一个新学生, -3 cash", fx: { cash: -3, _special: "hireStudent" } },
+      { label: "招那个有经验的", desc: "招一个新学生, -5 cash", fx: { cash: -5, _special: "hireStudent" } },
+      { label: "今年先不招了", desc: "+3 morale (省心)", fx: { morale: 3 } },
+    ],
+  },
+];
+
+// Mid events (week 5-10): real challenges
+const MID_EVENTS = [
   {
     id: "reviewer-nightmare", kicker: "Peer Review", title: "审稿人要求补实验",
     copy: "三个 reviewer 意见互相矛盾。R2 想要更多 ablation，R3 觉得你的方法 '缺乏新意'。",
     choices: [
       { label: "认真补实验", desc: "-5 compute, -3 tokens, +8 evidence, -3 risk", fx: { compute: -5, tokens: -3, evidence: 8, risk: -3 } },
       { label: "用 AI 编一个 rebuttal", desc: "-6 tokens, +4 progress, +8 risk", fx: { tokens: -6, progress: 4, risk: 8 } },
-      { label: "直接怼回去", desc: "-3 morale, +2 reputation (或 -4)", fx: { morale: -3, reputation: 2, risk: 5 } },
+      { label: "直接怼回去", desc: "-3 morale, +2 reputation, +5 risk", fx: { morale: -3, reputation: 2, risk: 5 } },
     ],
   },
   {
@@ -389,39 +460,12 @@ const EVENTS = [
     ],
   },
   {
-    id: "ai-hallucination", kicker: "AI Crisis", title: "AI 生成的数据有问题",
-    copy: "你发现上周 AI 生成的分析结果里有明显的 hallucination。已经写进了论文初稿。",
-    choices: [
-      { label: "停下来全面排查", desc: "-5 progress, +8 evidence, -8 risk", fx: { progress: -5, evidence: 8, risk: -8 } },
-      { label: "只修最明显的问题", desc: "-2 progress, +3 evidence, -2 risk", fx: { progress: -2, evidence: 3, risk: -2 } },
-      { label: "审稿人应该看不出来吧", desc: "+10 risk", fx: { risk: 10 } },
-    ],
-  },
-  {
     id: "collab-offer", kicker: "Opportunity", title: "有人想和你合作",
     copy: "一个大组的 PI 发邮件说对你的工作感兴趣，想联合投稿。但他们要第一作者。",
     choices: [
-      { label: "接受合作", desc: "+8 progress, +5 reputation, -挂名作者", fx: { progress: 8, reputation: 5, evidence: 3 } },
+      { label: "接受合作", desc: "+8 progress, +5 reputation, +3 evidence", fx: { progress: 8, reputation: 5, evidence: 3 } },
       { label: "谈判要共一", desc: "-2 morale, +5 progress, +3 reputation", fx: { morale: -2, progress: 5, reputation: 3 } },
       { label: "拒绝，独立发表", desc: "+3 morale, -2 reputation", fx: { morale: 3, reputation: -2 } },
-    ],
-  },
-  {
-    id: "data-leak", kicker: "Integrity", title: "数据清洗发现问题",
-    copy: "有一批数据的标注明显不对，但已经用它训练了两周了。",
-    choices: [
-      { label: "全部重来", desc: "-8 progress, -6 compute, +10 evidence, -10 risk", fx: { progress: -8, compute: -6, evidence: 10, risk: -10 } },
-      { label: "只修问题数据", desc: "-3 progress, -3 compute, +4 evidence, -4 risk", fx: { progress: -3, compute: -3, evidence: 4, risk: -4 } },
-      { label: "在 limitation 里提一嘴", desc: "+4 risk, +2 evidence", fx: { risk: 4, evidence: 2 } },
-    ],
-  },
-  {
-    id: "conference-invite", kicker: "Visibility", title: "会议邀请",
-    copy: "你被邀请做一个 spotlight talk。但项目还没做完。",
-    choices: [
-      { label: "接受邀请", desc: "+6 reputation, +5 risk (项目还没做完就上台)", fx: { reputation: 6, risk: 5 } },
-      { label: "要求改成 poster", desc: "+2 reputation, +1 risk", fx: { reputation: 2, risk: 1 } },
-      { label: "婉拒", desc: "+3 morale, -1 reputation", fx: { morale: 3, reputation: -1 } },
     ],
   },
   {
@@ -434,6 +478,46 @@ const EVENTS = [
     ],
   },
   {
+    id: "token-price-hike", kicker: "Market", title: "API 涨价了",
+    copy: "你常用的模型 API 宣布下月起价格上调 40%。你的 token 库存突然变得很珍贵。",
+    choices: [
+      { label: "趁涨价前囤货", desc: "-10 cash, +18 tokens", fx: { cash: -10, tokens: 18 } },
+      { label: "切换到便宜模型", desc: "AI 牌效果本局降低 20%", fx: { _weakenAI: true } },
+      { label: "减少 AI 使用", desc: "+3 morale, +2 evidence (手动做)", fx: { morale: 3, evidence: 2 } },
+    ],
+  },
+];
+
+// Late events (week 11-16): high stakes, crises
+const LATE_EVENTS = [
+  {
+    id: "ai-hallucination", kicker: "AI Crisis", title: "AI 生成的数据有问题",
+    copy: "你发现之前 AI 生成的分析结果里有明显的 hallucination。已经写进了论文初稿。",
+    choices: [
+      { label: "停下来全面排查", desc: "-5 progress, +8 evidence, -8 risk", fx: { progress: -5, evidence: 8, risk: -8 } },
+      { label: "只修最明显的问题", desc: "-2 progress, +3 evidence, -2 risk", fx: { progress: -2, evidence: 3, risk: -2 } },
+      { label: "审稿人应该看不出来吧", desc: "+10 risk", fx: { risk: 10 } },
+    ],
+  },
+  {
+    id: "data-leak", kicker: "Integrity", title: "数据清洗发现问题",
+    copy: "有一批数据的标注明显不对，但已经用它训练了好几周了。",
+    choices: [
+      { label: "全部重来", desc: "-8 progress, -6 compute, +10 evidence, -10 risk", fx: { progress: -8, compute: -6, evidence: 10, risk: -10 } },
+      { label: "只修问题数据", desc: "-3 progress, -3 compute, +4 evidence, -4 risk", fx: { progress: -3, compute: -3, evidence: 4, risk: -4 } },
+      { label: "在 limitation 里提一嘴", desc: "+4 risk, +2 evidence", fx: { risk: 4, evidence: 2 } },
+    ],
+  },
+  {
+    id: "conference-invite", kicker: "Visibility", title: "会议邀请",
+    copy: "你被邀请做一个 spotlight talk。但项目还没做完。",
+    choices: [
+      { label: "接受邀请", desc: "+6 reputation, +5 risk", fx: { reputation: 6, risk: 5 } },
+      { label: "要求改成 poster", desc: "+2 reputation, +1 risk", fx: { reputation: 2, risk: 1 } },
+      { label: "婉拒", desc: "+3 morale, -1 reputation", fx: { morale: 3, reputation: -1 } },
+    ],
+  },
+  {
     id: "media-cycle", kicker: "Press", title: "媒体找你做采访",
     copy: "一个科技媒体想报道你的工作。这是曝光机会，也是提前暴露半成品的风险。",
     choices: [
@@ -443,12 +527,21 @@ const EVENTS = [
     ],
   },
   {
-    id: "token-price-hike", kicker: "Market", title: "API 涨价了",
-    copy: "你常用的模型 API 宣布下月起价格上调 40%。你的 token 库存突然变得很珍贵。",
+    id: "retraction-scare", kicker: "Integrity", title: "有人质疑你的结果",
+    copy: "PubPeer 上有匿名评论指出你上一篇论文的图表有可疑之处。实际上是 AI 生成时的 artifact。",
     choices: [
-      { label: "趁涨价前囤货", desc: "-10 cash, +18 tokens", fx: { cash: -10, tokens: 18 } },
-      { label: "切换到便宜模型", desc: "AI 牌效果本局降低 20%", fx: { _weakenAI: true } },
-      { label: "减少 AI 使用", desc: "+3 morale, +2 evidence (手动做)", fx: { morale: 3, evidence: 2 } },
+      { label: "公开回应并补充原始数据", desc: "-3 progress, +6 evidence, -8 risk, +3 reputation", fx: { progress: -3, evidence: 6, risk: -8, reputation: 3 } },
+      { label: "私下联系质疑者", desc: "-2 morale, -3 risk", fx: { morale: -2, risk: -3 } },
+      { label: "无视，专心做新的", desc: "+8 risk, -2 reputation", fx: { risk: 8, reputation: -2 } },
+    ],
+  },
+  {
+    id: "final-sprint", kicker: "Deadline", title: "聘期倒计时",
+    copy: "离终审只剩几周了。你需要决定是冲刺进度还是补强证据。",
+    choices: [
+      { label: "全力冲进度", desc: "+10 progress, +5 risk, -5 morale", fx: { progress: 10, risk: 5, morale: -5 } },
+      { label: "补强证据链", desc: "+8 evidence, -3 morale", fx: { evidence: 8, morale: -3 } },
+      { label: "平衡推进", desc: "+5 progress, +4 evidence, -4 morale", fx: { progress: 5, evidence: 4, morale: -4 } },
     ],
   },
 ];
@@ -775,8 +868,18 @@ function generateWeeklyEvent() {
       choices: null,
     };
   } else {
-    // Pick a random event not recently used
-    state.currentEvent = deepCopy(sample(EVENTS));
+    let pool;
+    if (state.week === 1) {
+      state.currentEvent = deepCopy(OPENING_EVENT);
+      return;
+    } else if (state.week <= 4) {
+      pool = EARLY_EVENTS;
+    } else if (state.week <= 10) {
+      pool = MID_EVENTS;
+    } else {
+      pool = LATE_EVENTS;
+    }
+    state.currentEvent = deepCopy(sample(pool));
   }
 }
 
@@ -1159,6 +1262,8 @@ function makeEventChoice(choiceIdx) {
     } else if (key === "_weakenAI") {
       state.aiWeakened = true;
       addLog("切换到便宜模型，AI 效果降低 20%。");
+    } else if (key === "_special") {
+      handleSpecialEffect(key, val);
     } else if (key === "progress" || key === "evidence") {
       state.project[key] += val;
       spawnPopup(key, val);
@@ -1583,7 +1688,7 @@ function renderStudents() {
       <span class="student-icon">🤖</span>
       <div class="student-info">
         <div class="student-name-line"><span class="student-sname">AI 全栈模式</span></div>
-        <div class="student-trait">不坑机时，只坑 tokens。</div>
+        <div class="student-trait">你选择了独自面对一切。</div>
       </div>
     `;
     dom.studentsList.appendChild(el);
@@ -1591,20 +1696,17 @@ function renderStudents() {
   }
 
   for (const s of active) {
-    const trouble = s.troubleChance >= 0.3;
+    // Only show trouble indicator after player has experienced a trouble event from this student
+    const hadTrouble = state.log.some(l => l.text.includes(s.name));
     const el = document.createElement("div");
-    el.className = `student-chip ${trouble ? "trouble" : ""}`;
-    const costStr = Object.entries(s.weeklyCost).map(([k,v]) => `-${v}${shortLabel(k)}`).join(" ");
-    const outStr = Object.entries(s.weeklyOutput).filter(([,v]) => v !== 0).map(([k,v]) => `${v > 0 ? "+" : ""}${v}${shortLabel(k)}`).join(" ");
+    el.className = `student-chip ${hadTrouble ? "trouble" : ""}`;
     el.innerHTML = `
       <span class="student-icon">${s.icon}</span>
       <div class="student-info">
         <div class="student-name-line">
           <span class="student-sname">${s.name}</span>
-          <span class="student-output">${outStr}</span>
         </div>
-        <div class="student-trait">${s.trait}: ${s.traitDesc}</div>
-        <div style="font-size:.65rem;color:var(--text-muted)">每周消耗: ${costStr}</div>
+        <div class="student-trait">${s.traitDesc}</div>
       </div>
     `;
     dom.studentsList.appendChild(el);
