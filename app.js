@@ -1141,16 +1141,20 @@ function selfCare(type) {
     S.morale = Math.min(100, S.morale + 15);
     toast("自费按摩：morale +15（自掏腰包，心安理得）");
   } else if (type === "hotpot") {
-    // 请学生吃火锅
-    if (S.funding < 2) { toast("经费不够请客..."); return; }
+    // 学生请客 → 老师发劳务费 → 合规！
+    if (S.funding < 2) { toast("经费不够发劳务费..."); return; }
     const activeStudents = S.students.filter(s => !s.graduated && !s.quit);
-    if (!activeStudents.length) { toast("没有学生可以请..."); return; }
+    if (!activeStudents.length) { toast("没有学生可以请你吃饭..."); return; }
     S.funding -= 2;
     S.morale = Math.min(100, S.morale + 8);
-    // Students also get a boost (reduced trouble chance next quarter)
     for (const s of activeStudents) s._fedLastQ = true;
-    toast("请学生吃火锅：morale +8, funding -2（这个可以报销）");
-    addNews(`${S.name}老师请全组吃了顿火锅。学生们表示「老师真好」（吃完继续摸鱼）。`);
+    const scenarios = [
+      `学生请${S.name}老师吃了顿火锅，老师给每人发了劳务费。财务表示「合规」。`,
+      `组里聚餐，学生买单，老师以「学术交流劳务费」的名义报销给学生。完美闭环。`,
+      `学生请吃饭花了 800，老师发了 2000 劳务费。学生表示「老师太好了」。`,
+    ];
+    addNews(sample(scenarios));
+    toast("学生请客 + 发劳务费：morale +8, funding -2（合规！）");
   } else if (type === "retract") {
     const published = S.papers.filter(p => p.status === "published");
     if (!published.length) { toast("没有可以撤的论文"); return; }
@@ -1304,7 +1308,7 @@ function renderProfile() {
   dom.selfCareActions.innerHTML = `
     <button class="btn-action" data-care="walk"><span class="action-icon">🚶</span><span class="action-label">校园漫步</span><span class="action-cost">免费</span></button>
     <button class="btn-action" data-care="massage"><span class="action-icon">💆</span><span class="action-label">自费按摩</span><span class="action-cost">自掏腰包</span></button>
-    <button class="btn-action" data-care="hotpot"><span class="action-icon">🍲</span><span class="action-label">请学生吃火锅</span><span class="action-cost">¥2万</span></button>
+    <button class="btn-action" data-care="hotpot"><span class="action-icon">🍲</span><span class="action-label">学生请客+发劳务</span><span class="action-cost">¥2万</span></button>
     <button class="btn-action" data-care="complain"><span class="action-icon">😤</span><span class="action-label">发朋友圈吐槽</span><span class="action-cost">免费</span></button>
     <button class="btn-action" data-care="retract"><span class="action-icon">📝</span><span class="action-label">撤稿止损</span><span class="action-cost">rep -5</span></button>
   `;
