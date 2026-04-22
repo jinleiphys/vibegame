@@ -1,247 +1,168 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI科研生存模拟器 - 新时代青椒的挣扎</title>
-  <meta name="description" content="在AI时代做科研：学生坑你tokens，AI坑你evidence，对手抢你论文。你能活过聘期吗？">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%231e3a5f'/%3E%3Ctext x='32' y='44' font-size='32' text-anchor='middle' fill='white'%3E🎓%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PI Desktop — Tenure Track</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <!-- ═══ START: 教职申请页 ═══ -->
-  <div id="start-screen" class="screen">
-    <div class="browser-chrome">
-      <div class="chrome-dots"><span></span><span></span><span></span></div>
-      <div class="chrome-url">https://hr.ai-university.edu.cn/apply</div>
+<!-- Global effect layers -->
+<div id="flashLayer"></div>
+<canvas id="confettiCanvas"></canvas>
+<div id="unlockBanner">
+  <div class="unlockInner">
+    <span class="unlockIcon">🔓</span>
+    <div class="unlockLabel">New Mode Unlocked</div>
+    <div class="unlockTitle" id="unlockTitle">DECOMPOSE</div>
+    <div class="unlockSub" id="unlockSub">q≈85% · $0.9/task</div>
+  </div>
+</div>
+
+<!-- 冷开场：3 幕剧 -->
+<div id="coldOpen" class="overlay" data-act="1">
+
+  <!-- 幕 1：世界观 / deep space -->
+  <div class="introWrap" id="intro1">
+    <div class="introLabel">ACT I · 这个世界</div>
+    <h1 class="introTitle">2026 年，春。</h1>
+    <div class="introBody">
+      <p>AI 已经能读完全世界所有论文，写代码比大部分博士生快，推导比人少出错。</p>
+      <p>但大学还在用 <b>上个世纪的方式</b>培养研究者：招博士生、给 stipend、等五年、指望他们产出论文。</p>
+      <p>一个清醒的 PI 现在面对的选择是 ——</p>
+      <p class="introQuote">👩‍🎓 招一个学生，交 $600/周 的 stipend，等两个月他调环境。<br>🤖 还是打开 Claude，$2 一次当场跑完。</p>
+      <p>这个选择，决定你能不能拿到 tenure。</p>
     </div>
-    <div class="portal-layout">
-      <aside class="portal-sidebar">
-        <div class="portal-logo">🏛️</div>
-        <h1 class="portal-brand">AI大学<br><small>教职申请系统</small></h1>
-        <p class="portal-copy">Faculty Recruitment Portal</p>
-        <p class="portal-fine">© 2026 AI University HR</p>
-      </aside>
-      <main class="portal-main">
-        <h2 class="portal-title">申请 Tenure-Track 职位</h2>
-        <p class="portal-sub">请选择您的研究方向，开始您的 AI 时代科研生涯。</p>
+    <div class="introFoot"><button class="nextBtn" data-next="intro2">继续 →</button></div>
+  </div>
 
-        <div class="form-section">
-          <label class="form-label">0. 个人信息</label>
-          <div class="identity-row">
-            <span class="identity-name" id="player-name">张三丰</span>
-            <span class="identity-title">老师</span>
-            <button class="btn-link" id="btn-reroll-name">🎲 随机</button>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <label class="form-label">1. 选择研究方向</label>
-          <div class="direction-grid" id="direction-grid"></div>
-        </div>
-
-        <div class="form-section">
-          <label class="form-label">2. 选择起步策略</label>
-          <p class="form-hint">策略决定您的初始资源和可用工具。</p>
-          <div class="strategy-grid" id="strategy-grid"></div>
-        </div>
-
-        <div class="form-section form-actions">
-          <button class="btn-submit" id="btn-start" disabled>提交申请 →</button>
-          <p class="form-fine">点击提交即代表您同意本校「非升即走」协议。</p>
-        </div>
-
-        <div class="save-row" id="save-row" style="display:none">
-          <button class="btn-link" id="btn-continue">📂 继续上次进度</button>
-          <button class="btn-link btn-danger-link" id="btn-wipe">🗑️ 清空存档</button>
-        </div>
-
-        <p class="meta-line" id="meta-line"></p>
-      </main>
+  <!-- 幕 2：你是谁 / warm campus -->
+  <div class="introWrap hidden" id="intro2">
+    <div class="introLabel">ACT II · 你是谁</div>
+    <h1 class="introTitle">Assistant Professor, 第 6 年。</h1>
+    <div class="introBody">
+      <p>你是 <b>某 top-30 大学计算机系</b>的 assistant professor。</p>
+      <p>去年你招了第一个博士生 <b>小王</b>。她人很好，但……今天是 Monday，她还在调 CUDA 版本。</p>
+      <p>你的系主任 <b>Zhang Wei</b> 今天早上发来一封邮件，标题让你打开前深吸了一口气：</p>
+      <p class="introQuote">"Welcome back — Tenure Review Timeline."</p>
+      <p>隔壁 <b>Wang 教授</b>组里养了 5 个学生，年度预算 $340,000。去年他发了 1 篇 workshop 论文。<br>但你只有：<b>$5,000</b>，<b>1 个学生</b>，<b>一个 Claude API key</b>，<b>12 周</b>。</p>
+    </div>
+    <div class="introFoot">
+      <label>你的名字：<input id="playerName" value="Lin" maxlength="12"></label>
+      <button class="nextBtn" data-next="intro3">继续 →</button>
     </div>
   </div>
 
-  <!-- ═══ GAME: 主界面 ═══ -->
-  <div id="game-screen" class="screen hidden">
-    <div class="browser-chrome">
-      <div class="chrome-dots"><span></span><span></span><span></span></div>
-      <div class="chrome-url" id="game-url">https://faculty.ai-university.edu.cn/~张三丰</div>
-    </div>
-
-    <div class="game-layout">
-      <!-- 左侧: 个人面板 -->
-      <aside class="profile-sidebar" id="profile-sidebar">
-        <div class="profile-avatar" id="profile-avatar">👩‍🔬</div>
-        <h2 class="profile-name" id="profile-name">张三丰 老师</h2>
-        <div class="profile-meta">
-          <span id="profile-title">讲师</span> · <span id="profile-dept">AI学院</span>
+  <!-- 幕 3：规则（伪装成邮件） -->
+  <div class="introWrap hidden" id="intro3">
+    <div class="introLabel">ACT III · Zhang 系主任的邮件</div>
+    <div class="emailWrap">
+      <div class="emailHead">
+        <div class="avatar">Z</div>
+        <div>
+          <div class="from">Zhang Wei &lt;chair@cs.university.edu&gt;</div>
+          <div class="subj">Welcome back · Tenure Review Timeline</div>
+          <div class="date" id="emailDate">—</div>
         </div>
-        <div class="profile-meta" id="profile-year">第1年 Q1</div>
-
-        <div class="stat-section">
-          <h3 class="stat-title">资源</h3>
-          <div class="stat-bar-group" id="resource-bars"></div>
-        </div>
-
-        <div class="stat-section">
-          <h3 class="stat-title">能力</h3>
-          <div class="stat-bar-group" id="ability-bars"></div>
-        </div>
-
-        <div class="stat-section">
-          <h3 class="stat-title">应急操作</h3>
-          <div class="action-buttons" id="self-care-actions"></div>
-        </div>
-
-        <div class="stat-section">
-          <h3 class="stat-title">成就</h3>
-          <div class="achievement-row">
-            <span id="stat-papers">0</span> 篇论文 · <span id="stat-graduated">0</span> 位毕业生
-          </div>
-        </div>
-      </aside>
-
-      <!-- 右侧: 主内容区 -->
-      <main class="main-content">
-        <!-- 顶部: 信息栏 -->
-        <header class="top-bar">
-          <div class="top-bar-left">
-            <h1 id="top-name">张三丰 老师</h1>
-            <span class="top-meta" id="top-meta">讲师, AI学院</span>
-          </div>
-          <div class="top-bar-right">
-            <span class="quarter-badge" id="quarter-badge">1年 Q1</span>
-            <button class="btn-primary" id="btn-end-quarter">结束本季度 →</button>
-          </div>
-        </header>
-
-        <!-- Tab 导航 -->
-        <nav class="tab-nav" id="tab-nav">
-          <button class="tab-btn active" data-tab="home">首页</button>
-          <button class="tab-btn" data-tab="team">团队 <span class="tab-badge" id="team-count">0</span></button>
-          <button class="tab-btn" data-tab="research">科研</button>
-          <button class="tab-btn" data-tab="rivals">竞争</button>
-          <button class="tab-btn" data-tab="news">新闻</button>
-        </nav>
-
-        <!-- Tab 内容 -->
-        <div class="tab-content">
-          <!-- 首页 -->
-          <section class="tab-panel active" data-panel="home">
-            <div class="home-grid">
-              <div class="home-card ops-card">
-                <h3>作战面板</h3>
-                <p id="home-brief"></p>
-                <div class="ops-alert">
-                  <h4>系统建议</h4>
-                  <p id="home-recommendation"></p>
-                </div>
-                <h4>本季度目标</h4>
-                <div class="goal-list" id="goal-list"></div>
-              </div>
-              <div class="home-card project-card">
-                <h3>当前项目</h3>
-                <p id="home-direction"></p>
-                <h4 id="project-title"></h4>
-                <div class="project-stage-grid" id="project-stages"></div>
-              </div>
-              <div class="home-card season-card">
-                <h3 id="season-title">本季度</h3>
-                <p id="season-desc"></p>
-                <div class="season-actions" id="season-actions"></div>
-              </div>
-              <div class="home-card event-card" id="event-card" style="display:none">
-                <h3 id="event-title"></h3>
-                <p id="event-desc"></p>
-                <div class="event-choices" id="event-choices"></div>
-              </div>
-            </div>
-          </section>
-
-          <!-- 团队 -->
-          <section class="tab-panel" data-panel="team">
-            <div class="team-header">
-              <h2>实验室成员</h2>
-              <button class="btn-secondary" id="btn-recruit" style="display:none">🎓 招收新生</button>
-            </div>
-            <div class="team-grid" id="team-grid"></div>
-            <div class="team-empty" id="team-empty">
-              <p>实验室暂无成员。</p>
-              <p class="hint">招生季（Q3秋季）可以面试和招收学生。</p>
-            </div>
-          </section>
-
-          <!-- 科研 -->
-          <section class="tab-panel" data-panel="research">
-            <div class="research-grid">
-              <div class="research-card">
-                <h3>AI 工具箱</h3>
-                <p class="hint">用 tokens 驱动 AI 加速科研。效率很高。</p>
-                <div class="tool-list" id="ai-tools"></div>
-              </div>
-              <div class="research-card">
-                <h3>传统科研</h3>
-                <p class="hint">费时但可靠的老办法。</p>
-                <div class="tool-list" id="trad-tools"></div>
-              </div>
-              <div class="research-card">
-                <h3>论文管理</h3>
-                <p class="hint">你的学术产出记录。</p>
-                <div class="paper-list" id="paper-list"></div>
-              </div>
-            </div>
-          </section>
-
-          <!-- 竞争 -->
-          <section class="tab-panel" data-panel="rivals">
-            <h2>同行动态</h2>
-            <p class="hint">关注竞争对手的进展。他们不会等你。</p>
-            <div class="rival-grid" id="rival-grid"></div>
-          </section>
-
-          <!-- 新闻 -->
-          <section class="tab-panel" data-panel="news">
-            <h2>学术头条</h2>
-            <div class="news-feed" id="news-feed"></div>
-          </section>
-        </div>
-      </main>
-    </div>
-  </div>
-
-  <!-- ═══ MODAL: 事件弹窗 ═══ -->
-  <div id="modal-overlay" class="modal-overlay hidden">
-    <div class="modal-panel" id="modal-panel">
-      <h2 id="modal-title"></h2>
-      <p id="modal-desc"></p>
-      <div id="modal-body"></div>
-    </div>
-  </div>
-
-  <!-- ═══ END SCREEN ═══ -->
-  <div id="end-screen" class="screen hidden">
-    <div class="browser-chrome">
-      <div class="chrome-dots"><span></span><span></span><span></span></div>
-      <div class="chrome-url">https://hr.ai-university.edu.cn/evaluation</div>
-    </div>
-    <div class="end-layout">
-      <div class="end-panel">
-        <h1 id="end-title"></h1>
-        <p id="end-copy" class="end-copy"></p>
-        <div class="end-stats" id="end-stats"></div>
-        <div class="end-ranking" id="end-ranking"></div>
-        <div class="end-actions">
-          <button class="btn-submit" id="btn-restart">重新申请</button>
-          <button class="btn-link" id="btn-copy-report">📋 复制评估报告</button>
-        </div>
+      </div>
+      <div class="emailBody">
+        <p>Dear Prof. <span class="placeholder" id="nameSlot">Lin</span>，</p>
+        <p>欢迎回校。距离你的 <b>Tenure Review</b> 还有 <b>12 周</b>。委员会的期望很简单：</p>
+        <p style="padding-left:14px;border-left:2px solid var(--gold)">至少 <b>3 篇</b>一作论文。否则 —— 我们"向社会输送人才"。</p>
+        <p>你本学期可以调度：</p>
+        <ul>
+          <li>💰 经费 $5,000（AI / Cloud / 学生 stipend 共用，<b>每周消耗</b>）</li>
+          <li>👩‍🎓 博士生小王 · 每周 stipend $600 · 派任务她会在群里回复</li>
+          <li>🤖 ClaudeLab 终端 · 派任务当场有结果，按 token 计费</li>
+          <li>📥 每周 Inbox 会收到 2-3 封新的任务邮件</li>
+        </ul>
+        <p style="color:var(--student)">操作提示：在 Inbox 里点任务的 <b>[→ 派给小王]</b> 或 <b>[→ 跑 AI]</b>，然后点右下角 <b>[下班]</b> 推进一周。</p>
+        <p class="quote">今天最好的表现，是明天最低的要求。</p>
+        <p style="margin-top:18px">祝好，<br>Zhang Wei · Dept. Chair</p>
+      </div>
+      <div class="emailFoot">
+        <span style="color:var(--dim);font-size:11px">开局模式：Career · 12 周 · Tenure Review</span>
+        <button id="startBtn">回复：我准备好了 →</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast -->
-  <div id="toast" class="toast hidden"></div>
+</div>
 
-  <script src="./app.js"></script>
+<!-- 桌面 -->
+<div id="desktop" class="desktop hidden">
+  <div class="menuBar">
+    <span class="appleLogo">🎓</span>
+    <span class="menuItem">Prof. <b id="meName">Lin</b></span>
+    <span class="menuItem">Computer Science</span>
+    <span class="spacer"></span>
+    <span id="rivalCounter" class="menuItem">🐭 Wang: <b id="rivalPapers">0</b> papers</span>
+    <span class="menuItem">📄 <b id="papersM">0</b>/3</span>
+    <span class="menuItem">💰 $<b id="cashM">5000</b></span>
+    <span class="menuItem">📅 Week <b id="weekM">1</b>/12</span>
+    <span class="menuItem time" id="clock">—</span>
+    <span id="muteMenuBtn" title="Mute / Unmute">🔊</span>
+  </div>
+
+  <div class="windows">
+    <!-- 收件箱 -->
+    <section class="win inbox">
+      <div class="winHead">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="winTitle">📥 Inbox · 本周任务</span>
+      </div>
+      <div class="winBody" id="inboxBody"></div>
+    </section>
+
+    <!-- 学生群聊 -->
+    <section class="win chat">
+      <div class="winHead">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="winTitle">💬 学生群 · <span id="studentName">小王</span><span id="moodBadge">😊</span></span>
+        <span class="chatMeta" id="chatMeta">在线 · Week 1</span>
+      </div>
+      <div class="winBody chatBody" id="chatBody">
+        <div class="msg them"><div class="bubble">老师您好！我是新招的博士生小王，请多指教！🙇</div></div>
+        <div class="msg them"><div class="bubble">我这周可以开始干活了，您派任务吧～</div></div>
+      </div>
+    </section>
+
+    <!-- AI 终端 -->
+    <section class="win term">
+      <div class="winHead">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="winTitle">🤖 ClaudeLab · ~/research</span>
+        <span class="chatMeta">
+          <select id="modeSelect">
+            <option value="zeroshot">zero-shot</option>
+            <option value="decompose" disabled>decompose 🔒</option>
+            <option value="crosscheck" disabled>cross-check 🔒</option>
+            <option value="specfirst" disabled>spec-first 🔒</option>
+          </select>
+        </span>
+      </div>
+      <div class="winBody termBody" id="termBody"></div>
+    </section>
+  </div>
+
+  <div class="dock">
+    <div id="rivalTicker">
+      <div class="rivalTickerInner" id="rivalTickerInner">🐭 隔壁 Wang 组：招聘中…</div>
+    </div>
+    <button id="endWeek" class="endBtn">下班 · 进入 Week 2 →</button>
+  </div>
+</div>
+
+<!-- 模态 -->
+<div id="modal" class="overlay modal-overlay hidden">
+  <div class="mBox" id="mBox">
+    <h2 id="mTitle">—</h2>
+    <div id="mBody">—</div>
+    <div id="mBtns" class="mBtns"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>
