@@ -96,8 +96,12 @@
     <span class="appleLogo">🎓</span>
     <span class="menuItem">Prof. <b id="meName">Lin</b></span>
     <span class="menuItem">Computer Science</span>
+    <span id="actIndicator" class="menuItem actIndicator act1">🎬 ACT I · 蜜月</span>
     <span class="spacer"></span>
+    <span id="suspiciousCounter" class="menuItem suspiciousCounter" style="display:none" onclick="scrollToSuspicious()">🔍 待审 0</span>
+    <button id="nsfGrantBtn" class="menuItem nsfGrantBtn" title="申请 NSF Grant（W4 解锁）">📄 申请 NSF</button>
     <span id="rivalCounter" class="menuItem">🐭 Wang: <b id="rivalPapers">0</b> papers</span>
+    <span class="menuItem">🏆 rep: <b id="reputationM">+0</b></span>
     <span class="menuItem">📄 <b id="papersM">0</b>/3</span>
     <span class="menuItem">💰 $<b id="cashM">5000</b></span>
     <span class="menuItem">📅 Week <b id="weekM">1</b>/12</span>
@@ -135,15 +139,32 @@
         <span class="winTitle">🤖 ClaudeLab · ~/research</span>
         <span class="chatMeta">
           <select id="modeSelect">
-            <option value="zeroshot">zero-shot</option>
-            <option value="decompose" disabled>decompose 🔒</option>
-            <option value="crosscheck" disabled>cross-check 🔒</option>
-            <option value="specfirst" disabled>spec-first 🔒</option>
+            <option value="haiku">Haiku 4.5</option>
+            <option value="sonnet" disabled>Sonnet 4.6 🔒</option>
+            <option value="opus" disabled>Opus 4.7 🔒</option>
+            <option value="mythos" disabled>Mythos 🔮</option>
           </select>
         </span>
       </div>
       <div class="winBody termBody" id="termBody"></div>
     </section>
+  </div>
+
+  <!-- 论文组装进度条（显性） -->
+  <div class="paperAssembly">
+    <div class="paperAssemblyLabel">
+      📄 下一篇论文组装进度
+      <span class="paperAssemblySub">4 个高质量成品 = 1 篇论文 · AI 质量≥68% 或 学生质量≥55% 计入</span>
+    </div>
+    <div class="paperSlots" id="paperSlots">
+      <div class="slot" data-i="0"></div>
+      <div class="slot" data-i="1"></div>
+      <div class="slot" data-i="2"></div>
+      <div class="slot" data-i="3"></div>
+    </div>
+    <div class="paperAssemblyCount">
+      已发表 <b id="paperPublishedN">0</b>/3
+    </div>
   </div>
 
   <div class="dock">

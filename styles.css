@@ -444,6 +444,36 @@ html,body{
 }
 @keyframes promptRed{0%,100%{color:var(--warn)}50%{color:#ff0030}}
 
+/* ============ PAPER ASSEMBLY BAR ============ */
+.paperAssembly{
+  display:flex;align-items:center;gap:14px;
+  padding:10px 16px;
+  background:linear-gradient(180deg,rgba(255,215,0,0.04),rgba(255,215,0,0.08));
+  border-top:1px solid rgba(255,215,0,0.15);
+  border-bottom:1px solid rgba(255,215,0,0.15);
+}
+.paperAssemblyLabel{font-size:12px;color:var(--gold);font-weight:600;display:flex;flex-direction:column;min-width:180px}
+.paperAssemblySub{font-size:10px;color:var(--dim);font-weight:400;margin-top:2px}
+.paperSlots{display:flex;gap:10px;flex:1;max-width:520px}
+.paperSlots .slot{
+  flex:1;height:28px;border-radius:6px;
+  background:rgba(255,255,255,0.04);
+  border:1.5px dashed rgba(255,215,0,0.25);
+  position:relative;overflow:hidden;
+  transition:all .3s;
+}
+.paperSlots .slot::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--gold),#ffb800);
+  opacity:0;transform:scale(0.6);transition:all .4s cubic-bezier(.34,1.56,.64,1);
+}
+.paperSlots .slot.filled{border-style:solid;border-color:var(--gold);box-shadow:0 0 12px rgba(255,215,0,0.4)}
+.paperSlots .slot.filled::after{opacity:1;transform:scale(1)}
+.paperSlots .slot.justFilled{animation:slotPop .6s ease}
+@keyframes slotPop{0%{transform:scale(1)}30%{transform:scale(1.3)}60%{transform:scale(0.9)}100%{transform:scale(1)}}
+.paperAssemblyCount{font-size:12px;color:var(--gold);font-weight:700;white-space:nowrap}
+.paperAssemblyCount b{font-size:16px}
+
 /* ============ DOCK ============ */
 .dock{
   display:flex;justify-content:space-between;align-items:center;gap:14px;
@@ -544,6 +574,154 @@ html,body{
 /* Stats highlight in modal */
 .mStat{color:var(--ai);font-weight:700}
 .mStatWarn{color:var(--warn)}
+
+/* ============ SUSPICIOUS DELIVERY ============ */
+.taskCard.suspicious {
+  border-color: var(--warn);
+  box-shadow: 0 0 16px rgba(255,83,112,0.35), 0 4px 20px rgba(0,0,0,.3);
+  animation: slideIn .3s cubic-bezier(.22,1,.36,1), shake .4s ease .3s both;
+}
+.suspiciousBadge {
+  background: var(--warn);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+.suspiciousCounter {
+  color: var(--warn);
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(255,83,112,0.5);
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-size: 11px;
+  animation: suspiciousPulse 2s ease infinite;
+}
+@keyframes suspiciousPulse {
+  0%,100%{box-shadow:0 0 0 0 rgba(255,83,112,0)}
+  50%{box-shadow:0 0 0 4px rgba(255,83,112,0.25)}
+}
+
+/* ============ ADVISOR QUIP TOAST ============ */
+.advisorToast {
+  position: fixed;
+  bottom: 60px;
+  right: 18px;
+  z-index: 9500;
+  background: #0a0a0a;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 280px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.7), 0 0 20px rgba(255,215,0,0.15);
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity .35s ease, transform .35s cubic-bezier(.22,1,.36,1);
+  pointer-events: none;
+}
+.advisorToast.advisorToastShow {
+  opacity: 1;
+  transform: translateY(0);
+  animation: advisorFadeOut .5s ease 2.8s forwards;
+}
+@keyframes advisorFadeOut {
+  from{opacity:1;transform:translateY(0)}
+  to{opacity:0;transform:translateY(8px)}
+}
+.advisorToastIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.advisorToastText {
+  color: var(--gold);
+  font-size: 11.5px;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* ============ SHADY / BLAMESHIFT CHAT BUBBLES ============ */
+.bubble.shady {
+  color: var(--warn);
+  border-left: 2px solid var(--warn);
+  background: rgba(255,83,112,0.08);
+}
+.bubble.blameshift {
+  color: var(--rival);
+  border-left: 2px solid var(--rival);
+  font-style: italic;
+}
+
+/* ============ ACT INDICATOR ============ */
+.actIndicator {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  transition: all .4s ease;
+}
+.actIndicator.act1 {
+  color: #4dabf7;
+  border-color: rgba(77,171,247,0.4);
+  background: rgba(77,171,247,0.08);
+  text-shadow: 0 0 8px rgba(77,171,247,0.5);
+}
+.actIndicator.act2 {
+  color: #ff9a3c;
+  border-color: rgba(255,154,60,0.4);
+  background: rgba(255,154,60,0.08);
+  text-shadow: 0 0 8px rgba(255,154,60,0.5);
+  animation: actPulse2 2s ease infinite;
+}
+.actIndicator.act3 {
+  color: #c084fc;
+  border-color: rgba(192,132,252,0.4);
+  background: rgba(192,132,252,0.08);
+  text-shadow: 0 0 8px rgba(192,132,252,0.7);
+  animation: actPulse3 1.5s ease infinite;
+}
+@keyframes actPulse2 {
+  0%,100%{box-shadow:0 0 0 0 rgba(255,154,60,0)}
+  50%{box-shadow:0 0 0 4px rgba(255,154,60,0.2)}
+}
+@keyframes actPulse3 {
+  0%,100%{box-shadow:0 0 0 0 rgba(192,132,252,0)}
+  50%{box-shadow:0 0 0 6px rgba(192,132,252,0.25)}
+}
+
+/* ============ NSF GRANT BUTTON ============ */
+.nsfGrantBtn {
+  background: transparent;
+  color: #4dabf7;
+  border: 1px solid rgba(77,171,247,0.35);
+  border-radius: 5px;
+  padding: 2px 9px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.nsfGrantBtn:hover {
+  background: rgba(77,171,247,0.12);
+  border-color: rgba(77,171,247,0.6);
+  box-shadow: 0 0 10px rgba(77,171,247,0.2);
+}
+.nsfGrantBtn:active { transform: scale(0.95); }
+
+/* ============ REPUTATION COUNTER ============ */
+#reputationM {
+  color: var(--gold);
+}
 
 /* ============ RESPONSIVE ============ */
 @media(max-width:1100px){
