@@ -21,13 +21,13 @@
 
 ## 运行
 
-直接打开 `index.html`，或在项目目录启动本地静态服务：
+直接打开 `PI-Desktop/index.html`，或在仓库根目录启动本地静态服务：
 
 ```bash
 python3 -m http.server 4173
 ```
 
-然后访问 `http://127.0.0.1:4173/index.html`。
+然后访问 `http://127.0.0.1:4173/PI-Desktop/index.html`。根目录的 `index.html` 是入口页，会链接到这个游戏。
 
 ## 主要文件
 
