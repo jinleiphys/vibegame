@@ -5,6 +5,9 @@ const TOTAL_WEEKS = 12;
 const START_CASH = 5000;
 const STUDENT_STIPEND = 600;
 const PAPERS_GOAL = 3;
+const FOCUS_PER_WEEK = 3;
+const AUDIT_COST = 300;
+const OVERWORK_COST = 350;
 
 // ============ AUDIO ENGINE (Web Audio API, no external files) ============
 let audioCtx = null;
@@ -156,133 +159,182 @@ function showUnlockBanner(modeName, sub) {
 // ============ TASK POOL ============
 const TASK_POOL = [
   { id:"lit",   emoji:"📚", name:"文献综述",
-    from:"co-author@mit.edu", subj:"本周任务：综述 diffusion 方向近 2 年",
-    body:"我们 intro 还差一段，帮我扫一下近两年 diffusion 加速方向的论文，要能区分 consistency model 和 rectified flow。", workload:3 },
+    from:"co-author@frib.msu.edu", subj:"本周任务：整理 chiral EFT 三体力文献",
+    body:"PRC draft 的 intro 还差一段。请把 N2LO/N3LO 三体力、c_D/c_E 拟合、cutoff dependence 和少体 observable 的脉络理清楚。", workload:3 },
   { id:"code",  emoji:"💻", name:"代码实现",
-    from:"self@todo",         subj:"实现 baseline: FlashAttention 对照组",
-    body:"审稿人要求我们对比 FlashAttention-2。需要一版能在我们数据上跑的实现。", workload:4 },
+    from:"self@todo",         subj:"修 runtime potential: N3LO 矩阵元读表",
+    body:"deuteron 能量和相移对不上旧代码。需要检查 LSJ channel 顺序、k-grid interpolation 和 regulator factor。", workload:4 },
   { id:"data",  emoji:"🔢", name:"数据分析",
-    from:"collaborator@stanford.edu", subj:"48 个 CSV 的统计显著性",
-    body:"隔壁组给了我们 48 个 run 的结果，需要跑 permutation test 出 p-value。", workload:3 },
+    from:"collaborator@ornl.gov", subj:"48 组 cutoff / SRG 参数的收敛外推",
+    body:"合作者给了 48 个 Nmax/hbarOmega 点。需要做指数外推、估计截断误差，并画出 Tjon-line 风格的系统性趋势。", workload:3 },
   { id:"proof", emoji:"🧮", name:"公式推导",
-    from:"reviewer2@nips",    subj:"审稿意见：Lemma 3.2 的证明不完整",
-    body:"Reviewer 2 说我们 Lemma 3.2 有个 edge case 没处理。需要补完推导。", workload:5 },
+    from:"reviewer2@prc",    subj:"审稿意见：antisymmetrizer normalization 不清楚",
+    body:"Reviewer 2 说 Jacobi 坐标下的反对称化因子写得太快，担心我们少了一个 sqrt(A!)。需要补完整推导。", workload:5 },
   { id:"write", emoji:"✍️", name:"论文写作",
-    from:"self@todo",         subj:"NeurIPS 截稿前的 method 章节",
-    body:"method 章节还剩 2 个小节没写。按我们现有的 draft 风格补完。", workload:4 },
+    from:"self@todo",         subj:"PRC 截稿前的 Hamiltonian 章节",
+    body:"method 章节还剩 NN+3N interaction、SRG evolution 和 basis truncation 三段没写。按现有 draft 风格补完。", workload:4 },
   { id:"exp",   emoji:"🧪", name:"实验设计",
-    from:"self@todo",         subj:"设计一个 ablation 说服审稿人",
-    body:"我们需要一个 ablation 表证明 component X 是必要的，出表格方案。", workload:3 },
+    from:"self@todo",         subj:"设计一个 benchmark 说服审稿人",
+    body:"我们需要一个表证明张量力、三体力和 Coulomb correction 分别有多重要。请设计 deuteron、triton、He4 的 benchmark 表。", workload:3 },
 ];
+
+const STUDENT_ROUTES = {
+  literature: {
+    label: "文献半年",
+    badge: "📚 文献半年",
+    short: "系统读文献，前 6 周基本不产出，但后期质量高、风险低。",
+    body: "现实后果：她会真的理解 chiral EFT、SRG、basis truncation 和 uncertainty，但 tenure 这 12 周里前半局几乎没有产出。",
+  },
+  legacy: {
+    label: "直接跑旧代码",
+    badge: "💻 旧代码",
+    short: "马上跑组内 existing code，前期快，但黑箱误用和撤稿风险高。",
+    body: "现实后果：她很快能给你图，但未必知道 LSJ channel、phase convention、3N matrix element 和 cutoff 到底有没有对上。",
+  },
+  reproduce: {
+    label: "先复现 benchmark",
+    badge: "🧪 复现入门",
+    short: "先复现 deuteron/triton/He4 sanity checks，再上主线。速度中等，风险最低。",
+    body: "现实后果：这通常是更稳的带新生方式。先让她跑组内代码，但只跑可验证的 benchmark，不直接拿黑箱结果写 paper。",
+  },
+};
+
+const TASK_FIT = {
+  lit:   { ai: 0.05, student: { literature: 0.16, legacy: -0.06, reproduce: 0.08 }, note: "读文献/写 framing" },
+  code:  { ai: -0.04, student: { literature: -0.04, legacy: 0.10, reproduce: 0.14 }, note: "旧代码/benchmark" },
+  data:  { ai: -0.01, student: { literature: 0.00, legacy: 0.06, reproduce: 0.12 }, note: "外推/数值检查" },
+  proof: { ai: 0.02, student: { literature: 0.12, legacy: -0.12, reproduce: 0.04 }, note: "推导/convention" },
+  write: { ai: 0.06, student: { literature: 0.10, legacy: -0.02, reproduce: 0.06 }, note: "论文写作" },
+  exp:   { ai: 0.03, student: { literature: 0.06, legacy: 0.00, reproduce: 0.14 }, note: "benchmark 设计" },
+};
 
 // 每条是一个气泡串（array of bubbles），群聊里连续发出来，更像真人
 const STUDENT_LINES = {
   receive: [
-    ["好的老师！", "我这就开搞 💪"],
-    ["收到收到", "正好我最近想练这块", "不会就学～"],
-    ["OK", "不过 workload 有点大啊…您给我几天？"],
-    ["好的老师…", "（这块我不是特别熟）", "但我学！"],
-    ["来啦", "刚好我手头那个 side project 告一段落"],
+    ["好的老师！", "我先从 deuteron 和 triton sanity check 做起 💪"],
+    ["收到收到", "我先把 channel convention 对齐", "不然之后全是玄学"],
+    ["OK", "这个 workload 有点像 Nmax=14…您给我几天？"],
+    ["好的老师…", "（三体力这块我还不太熟）", "但我先把 c_D/c_E 文献补上！"],
+    ["来啦", "我刚把 Moshinsky bracket 那个脚本跑完"],
   ],
 
   excuse: [
-    // 环境党
-    ["老师…", "我这周都在调环境", "cuda 12.1 和 torch 2.3 不兼容", "github issue 里有人说要降到 11.8", "我重装了三遍系统了 😭"],
-    ["那个 baseline 我 clone 下来了", "requirements.txt 装到一半崩了", "作者 github 最后更新是 2022 年", "我给作者发了邮件还没回"],
-    ["老师我在 conda env 里卡了两天", "apex 编不过", "师兄说他也编不过，让我等 docker 镜像", "这不是我的问题真的"],
+    // 基底和截断党
+    ["老师…", "我这周主要在查 HO basis 截断", "Nmax=10 和 Nmax=12 的趋势反了", "我怀疑不是物理，是 basis ordering 出问题了 😭"],
+    ["我把 Jacobi basis 重新生成了一遍", "结果 antisymmetrizer 的 eigenvalue 有几个不是 0 或 1", "我现在不敢继续往下算"],
+    ["老师我卡在 M-scheme 到 J-coupled 的转换", "phase convention 差一个 (-1)^(j1+j2-J)", "差这个号，He4 直接不束缚"],
 
-    // 甩锅 GPU 党
-    ["师兄把 A100 借走了", "说跑一个大 ablation", "排队到我可能要下周三", "要不我先做点别的？"],
-    ["IT 昨天说集群要维护", "我的 job 全被 kill 了", "checkpoint 没保最新的那个", "要从 epoch 30 重跑…"],
-    ["张师兄的代码把我的实验覆盖了", "他说他不是故意的", "但我的 log 全没了", "得重跑一遍"],
+    // 势和相移党
+    ["我在查 N3LO potential 读表", "1S0 channel 是对的", "3S1-3D1 coupling 好像被我读反了", "deuteron quadrupole moment 很难看"],
+    ["phase shift 跑出来了", "但是 P waves 整体偏了 2 度", "我怀疑是 k-grid interpolation 太糙", "不是物理问题真的"],
+    ["老师", "Coulomb 我先关了", "不然 pp channel 的相移图我看不懂", "等 NN 部分对了我再开回来"],
 
-    // 家里事党
-    ["老师不好意思", "家里有点事", "我妈非让我回去一趟", "说有个亲戚要介绍对象…", "我周末就回来 🙏"],
-    ["老师…", "我奶奶住院了", "我得回家一趟", "可能这周见不到我了"],
-    ["我男朋友下周生日", "他在外地", "我想请 3 天假过去一下", "回来我一定补上 🥺"],
+    // 超算和脚本党
+    ["集群队列卡住了", "我那个 Nmax=14 job 排了 38 小时", "刚开始跑就 walltime 到了", "log 只写到 Hamiltonian dimension"],
+    ["我用错 partition 了", "本来要跑 CPU 大内存", "结果投到了 GPU 队列", "管理员把我 job kill 了"],
+    ["张师兄把 shared scratch 清了", "我的 3N matrix elements 被删了", "重新生成要一晚上"],
 
-    // 身体党（借鉴"感冒发烧骨折腰闪脚崴"梗）
-    ["老师这周真不好意思", "我感冒了，还起了点低烧", "晚上一直咳嗽睡不好", "白天也没什么状态…"],
-    ["上周末打球把脚崴了", "现在坐工位还行，走路不行", "去实验室不太方便", "我在家远程看看"],
-    ["老师我腰闪了…", "坐一个小时就疼", "医生说这周最好躺平", "我先把文献看了 🥲"],
+    // 身体和现实党
+    ["老师这周真不好意思", "我感冒了，还起了点低烧", "看 9j symbol 看得头更疼", "白天状态不太行…"],
+    ["上周末打球把脚崴了", "去办公室不方便", "我在家远程看相移", "但 VPN 老断 🥲"],
+    ["老师我腰闪了…", "坐久了疼", "我先躺着读 Epelbaum 那篇 review"],
 
-    // 水组会党
-    ["老师这周具体 coding 不多", "但我想了很多", "感觉我们方向的 big picture 可能有点问题…", "我准备组会上跟您聊聊"],
-    ["这周我主要在看文献", "发现一篇 2019 的 workshop 和我们有点像", "但是他们思路完全反的", "我想再深挖一下"],
-    ["老师能组会讲讲 quals 的内容吗", "顺便热个身", "正好我也要准备了"],
+    // 组会玄学党
+    ["老师这周具体数值结果不多", "但我认真想了 effective interaction 的物理图像", "感觉我们应该从 RG flow 讲起"],
+    ["我发现一篇 2007 年的 PRC 和我们图很像", "但他们用的是 Idaho N3LO", "我想再深挖一下，避免撞车"],
+    ["老师组会能不能讲一下 SRG induced 4N force", "我感觉大家都默认它小", "但没人真的讲清楚"],
 
-    // 换方向党（画饼转移话题）
-    ["老师", "我这周想了一下", "我觉得这个方向做出来也就是 workshop", "我有个新 idea 跟 diffusion 结合", "您觉得怎么样？"],
-    ["老师…", "我师兄最近搞了一个 hot 的方向", "他问我要不要一起做", "我就做 3 天可以吗？", "绝对不耽误主线 🙇"],
-    ["我觉得我们这个 baseline 选错了", "现在大家都不比这个了", "能不能换一个对比对象？"],
+    // 换题画饼党
+    ["老师", "我这周想了一下", "单纯 He4 可能不够 sexy", "要不要顺手做一下 neutron-rich oxygen？"],
+    ["我师兄说 IMSRG 现在很热", "我就看了三天", "感觉我们是不是也可以把方法包装成 ab initio pipeline"],
+    ["我觉得 benchmark 不能只放 binding energy", "要不要加 radius 和 EM form factor", "这样更像完整物理故事"],
 
-    // workshop / 课程党
-    ["下周 NeurIPS workshop deadline", "我想先把那个 poster 弄完", "这个主线再缓一缓好吗", "workshop 也算一篇啊"],
-    ["ML 课程 final project 周五交", "我实在没时间", "等我交完就回来", "求老师放我一马"],
-    ["quals 下下周考", "我这周真得复习", "您也知道挂了就…💀"],
+    // 课程和 deadline 党
+    ["下周 DNP abstract deadline", "我想先把 poster 摘要写了", "主线能不能缓两天"],
+    ["量子多体课程作业周五交", "里面刚好有 second quantization", "也算对课题有帮助吧老师"],
+    ["quals 下下周考", "我这周真得复习 scattering theory", "不然连 Lippmann-Schwinger 都讲不清楚 💀"],
 
     // 玄学党
-    ["电脑昨天蓝屏了", "我送去修了", "数据恢复要一周", "真的不是我的问题"],
-    ["我 git 搞崩了", "rebase 的时候把 3 个 commit 合没了", "在找怎么恢复", "今天一天都在处理这个"],
-    ["老师 overleaf 抽风", "我写的那段 method 不见了", "只能重写…我要哭了 😭"],
+    ["电脑昨天蓝屏了", "我怀疑是我把 matrix elements 存成了 80GB npz", "数据恢复要一周"],
+    ["我 git rebase 崩了", "把修 channel ordering 的 commit 合没了", "现在 deuteron 又回到不束缚状态"],
+    ["老师 overleaf 抽风", "我写的 SRG evolution 那段不见了", "只能重写…我要哭了 😭"],
   ],
 
   progress: [
-    ["跑了大概一半吧", "中间有个 nan loss 的 bug 在查", "应该不是大问题"],
-    ["结果出来了…", "但是和我们期望的差挺多", "我在看是不是 hyperparameter 的问题", "还是方法本身有问题 🥲"],
-    ["差不多了老师", "在做最后一版的对比实验", "下周交给您"],
-    ["我跑出来一个初步的结果", "但是 variance 有点大", "想再跑 3 个 seed 看看是不是偶然"],
-    ["方法能跑了", "但是速度比 baseline 慢 3 倍 🫠", "我在 profile 哪里慢"],
+    ["跑了大概一半吧", "deuteron 能量已经对到 keV 量级", "但是 D-state probability 还有点飘"],
+    ["结果出来了…", "triton binding energy 差了 300 keV", "我在看是 c_E 拟合问题", "还是 3N cutoff 没对上 🥲"],
+    ["差不多了老师", "现在在扫 hbarOmega", "看起来 Nmax 外推还比较稳"],
+    ["我跑出来一个初步结果", "但是 cutoff dependence 有点大", "想再跑 lambda=1.8/2.0/2.2 fm^-1 看趋势"],
+    ["代码能跑了", "但是构造 Hamiltonian 比 diagonalization 还慢 🫠", "我在 profile Moshinsky transformation"],
   ],
 
   done: [
-    ["跑通啦 🎉", "我大概评估了一下，能到 70% 吧", "您有空看一下 👀"],
-    ["交了！", "代码在 branch feat/xxx", "图在 overleaf 我新开了一节", "老师您把关"],
-    ["终于搞定了…", "这周基本没睡", "我先去补个觉 🥲"],
-    ["完成了老师", "不过我想说一下", "我在做的时候觉得 intro 那一段可能换个 framing 会更 compelling", "您觉得呢？"],
-    ["done！", "顺便我把 README 也补了", "docker 镜像 push 上去了", "下次跑实验能快很多 ✨", "[PUA生效 🔥]"],
+    ["跑通啦 🎉", "deuteron、triton、He4 三个 sanity check 都在合理范围", "您有空看一下 👀"],
+    ["交了！", "代码在 branch fix-channel-order", "图在 overleaf 我新开了一节", "老师您把关"],
+    ["终于搞定了…", "这周基本都在盯相移图", "我先去补个觉 🥲"],
+    ["完成了老师", "不过我觉得 intro 可以从 cutoff uncertainty 切入", "比单纯说 ab initio 更有说服力"],
+    ["done！", "顺便我把 matrix element cache 和 README 补了", "下次换 interaction 能快很多 ✨", "[导师满意度 +1]"],
   ],
 
   chat: [
     ["老师您在吗 👀"],
-    ["老师这个 bug 困了我两天了", "在线等，挺急的"],
-    ["老师您上次说的那篇 paper 我找到了", "作者居然是我本科老师 😂"],
-    ["今天食堂的鸡腿真难吃", "吐槽一下"],
-    ["老师 NeurIPS 的 notification 出了没…", "我心跳有点快"],
-    ["老师", "隔壁 Wang 组那个学生发朋友圈", "说他们又发了一篇 arXiv", "我看了下跟我们方向有点像 😨"],
+    ["老师这个 phase convention 困了我两天了", "在线等，挺急的"],
+    ["老师您上次说的那篇 PRC 我找到了", "作者居然引用了我们组十年前那篇 😂"],
+    ["今天食堂的鱼像没加 tensor force", "完全没有吸引力"],
+    ["老师 PRC referee report 出了没…", "我心跳有点快"],
+    ["老师", "隔壁 Wang 组那个学生发朋友圈", "说他们 He4 已经对到 10 keV", "我看了下跟我们方向有点像 😨"],
   ],
 
   shady: [
     // 数据党
-    ["老师跑通啦 🎉", "p = 0.043 🙈", "compelling 吧！"],
-    ["那个 baseline 我其实没跑全", "只跑了 3 个 seed", "但是均值差不多就这样", "再跑意义也不大对吧？"],
-    ["我把那两个 outlier 扔了", "曲线漂亮多了", "应该没事吧老师…？"],
+    ["老师跑通啦 🎉", "He4 只差 80 keV 🙈", "把 Coulomb 关掉后特别漂亮"],
+    ["那个 cutoff scan 我其实没跑全", "只跑了 lambda=2.0", "但趋势应该差不多，对吧？"],
+    ["我把 hbarOmega=12 那个点删了", "外推线漂亮多了", "应该可以说是 finite-basis artifact 吧老师…？"],
     // 凑数党
-    ["ablation table 那几个数", "我是按趋势估的", "reviewer 不会真去复现吧？", "大家不都这样的吗 😅"],
-    ["那个 metric 原论文没公开代码", "我按我的理解实现的", "数字跟他们的对不上", "但我觉得我的更合理"],
+    ["benchmark table 那几个半径", "我是按已有趋势插值的", "reviewer 不会真拿代码复现吧？"],
+    ["那个 3N matrix element 原文件太大", "我先用了 normal-ordered two-body approximation", "图反而更好看"],
     // 借口党
-    ["这个数据我重新算了一遍", "和原始文件有点对不上", "可能 random seed 不一样？", "我 reproduce 不太出来但结果方向是对的"],
-    ["proof 里那个 edge case", "我用一句 'it follows from standard arguments' 带过了", "reviewer 没要求展开啊"],
+    ["这个相移我重新算了一遍", "和 Nijmegen 数据有点对不上", "可能 convention 不一样？", "物理趋势是对的"],
+    ["antisymmetrizer 那个 normalization", "我用一句 'up to a phase convention' 带过了", "PRC reviewer 应该懂吧"],
   ],
 
   blameshift: [
-    ["老师…这个思路", "是您一开始让我做的呀", "我完全是按您说的来的", "🥲"],
-    ["是张师兄教我这么处理 outlier 的", "他说他们组一直这么做", "我就…直接用了"],
-    ["这个数据集是 collaborator 给的", "我没动过原始文件", "可能他们那边就有问题"],
-    ["GPU 不够是 IT 的问题啊", "我申请了两次都没批", "我能怎么办 🤷"],
-    ["那篇 reference 是上一个 RA 加的", "他毕业了", "我也不知道为啥引"],
-    ["我也不想这样的老师", "是 deadline 逼得", "您当时不是说能赶上就行吗…"],
+    ["老师…这个 SRG lambda", "是您上次组会说先用 2.0 fm^-1 的呀", "我完全是按您说的来的 🥲"],
+    ["是张师兄教我这么删外推点的", "他说明显不在 asymptotic 区就可以扔", "我就…直接用了"],
+    ["这个 interaction 文件是 collaborator 给的", "我没动过原始矩阵元", "可能他们那边 channel 顺序就不一样"],
+    ["算力不够是集群的问题啊", "我申请了大内存节点两次都没批", "Hamiltonian dimension 又不是我定的 🤷"],
+    ["那篇 reference 是上一个 RA 加的", "他毕业了", "我也不知道为啥把 Argonne v18 引成 CD-Bonn"],
+    ["我也不想这样的老师", "是 PRC deadline 逼得", "您当时不是说先把图凑齐吗…"],
+  ],
+};
+
+const ONBOARDING_LINES = {
+  literatureStudy: [
+    ["老师我这周主要在读 Machleidt 的 N3LO review", "好多 convention 不统一", "我先整理一张表"],
+    ["我在看 SRG 的 flow equation", "现在明白为什么 induced many-body force 不能随便忽略了"],
+    ["这周读了三体力 c_D/c_E 拟合", "感觉不同组的 convention 真的很容易坑新人"],
+    ["我把 HO basis、Nmax、hbarOmega 的截断关系整理了一版", "还没产图，但概念清楚多了"],
+  ],
+  legacyFast: [
+    ["旧代码已经跑起来了", "但我还没完全搞懂 input 里 Jmax 和 kmax 的关系"],
+    ["图先出来了", "不过我还在确认 3S1-3D1 coupling 的列顺序"],
+    ["脚本能一键扫 cutoff", "就是 log 太多，我还不知道哪个 warning 真要管"],
+  ],
+  reproduceBench: [
+    ["deuteron binding energy 对上了", "下一步看 D-state probability"],
+    ["triton 还差一点", "我在查 Coulomb 和 3N force 有没有一起开"],
+    ["He4 benchmark 快对上了", "Nmax 外推我再稳一下"],
   ],
 };
 
 const ADVISOR_QUIPS = [
-  "在我看来一周 168 小时，她的有效科研时间大概 12 小时。",
-  "做人做事不能慌。",
-  "实验失败了不要紧，毕竟科学家也是靠想象力吃饭的。",
-  "致谢别写我，没教过这么笨的。",
-  "有的同学就是不听，不但看电影，还看通宵电影。",
-  "人生在世，快乐二字。",
-  "这一周她 168 小时都干嘛去了？",
+  "先别调参，deuteron 都没对上就不要谈 He4。",
+  "三体力不是垃圾桶，不能什么误差都往 c_E 里塞。",
+  "相移图难看不要紧，最怕的是你不知道横轴单位是什么。",
+  "致谢别写我，我没教过把 3S1 和 3D1 读反的。",
+  "有的同学就是不听，Nmax 没收敛就开始讲物理图像。",
+  "人生在世，先守住 Hermiticity。",
+  "这一周她 168 小时都干嘛去了？连 phase convention 都没固定。",
 ];
 
 // 真·Anthropic 模型定价（2026-04）按官网价格按比例折算到每任务成本
@@ -304,18 +356,18 @@ const AI_MODES = {
 };
 
 const RIVAL_TICKER = [
-  "招聘中，本周收到 340 份申请。",
-  "又招了 1 个博士生。组里现在 4 人。",
-  "组会取消，两个学生闹情绪。",
+  "招聘中，本周收到 34 份少体方向申请。",
+  "又招了 1 个博士生。组里现在 4 人，3 人在算 He4。",
+  "组会取消，两个学生因为 SRG lambda 吵起来。",
   "给整组续了 stipend，年度开销突破 $280k。",
-  "一个学生申请延毕。",
-  "Workshop 论文被 reject，11 个作者心血白费。",
-  "两个学生抢 GPU 差点打起来。",
-  "有人爆料学生造假，内部调查中。",
-  "Wang 教授在 Twitter 抱怨学生不独立。",
-  "再招 2 人。预算再次攀升。",
-  "Wang 教授开始偷偷用 ChatGPT。",
-  "一位学生凌晨 4 点还在 commit，另一位在抑郁症复诊。",
+  "一个学生申请延毕，理由是 Nmax 还没收敛。",
+  "PRC 被 reject，11 个作者心血白费。",
+  "两个学生抢大内存节点差点打起来。",
+  "有人爆料相移图删点，内部调查中。",
+  "Wang 教授在 X 上抱怨学生不懂 phase convention。",
+  "再招 2 人。超算申请再次扩容。",
+  "Wang 教授开始偷偷用 Claude 查 9j symbol。",
+  "一位学生凌晨 4 点还在生成 3N 矩阵元，另一位在重读 Faddeev 方程。",
 ];
 
 // Terminal ASCII banner
@@ -342,8 +394,8 @@ const EVENT_POOL = [
   },
   {
     id: "student_offer",
-    emoji: "🎓", title: "小王收到 Meta offer",
-    body: "小王进来找你谈话，表情复杂：\n\n「老师……Meta 给了我 offer，年薪 $500k package，下周就想让我 on-board。我……还没决定。」\n\n你的心跳漏了半拍。她手头还有三个未完成任务。",
+    emoji: "🎓", title: "小王收到国家实验室 postdoc offer",
+    body: "小王进来找你谈话，表情复杂：\n\n「老师……ORNL 那边给了我 postdoc offer，下周就想让我过去做 coupled-cluster。我……还没决定。」\n\n你的心跳漏了半拍。她手头还有三个未完成任务。",
     options: [
       { label: "加薪挽留（-$1,500，但她留下）",
         fn: () => { state.cash -= 1500; bounceEl("cashM");
@@ -354,8 +406,8 @@ const EVENT_POOL = [
           if (Math.random() < 0.6) {
             const gone = state.assignedStudent.filter(s => !s.done);
             gone.forEach(s => { s.done = true; s.quality = 0; });
-            pushChat("sys","— 小王辞职了，未完成的任务全部作废……祝她前程似锦 —");
-            pushTerm("result","💔 小王去 Meta 了，未完成任务清零"); screenShake(); flashScreen("rgba(255,83,112,0.2)");
+            pushChat("sys","— 小王转去国家实验室了，未完成的任务全部作废……祝她前程似锦 —");
+            pushTerm("result","💔 小王去 ORNL 了，未完成任务清零"); screenShake(); flashScreen("rgba(255,83,112,0.2)");
           } else {
             pushChat("sys","— 小王感谢了你的祝福，但最终选择留下来继续读 PhD —");
             pushTerm("result","😮 小王居然留下来了！"); }
@@ -365,13 +417,12 @@ const EVENT_POOL = [
   {
     id: "arxiv_clash",
     emoji: "📰", title: "arXiv 撞车",
-    body: "凌晨 2:37，你手机震动。\n\n小王发来截图：一篇刚上 arXiv 的预印本，idea 和你们几乎一模一样，连实验设置都撞了。作者来自 CMU。\n\n你盯着屏幕，感觉时间在流逝。",
+    body: "凌晨 2:37，你手机震动。\n\n小王发来截图：一篇刚上 arXiv 的预印本，题目也是 SRG-evolved chiral interaction 下的 He4 收敛。连 cutoff 和 hbarOmega 扫描范围都撞了。作者来自 TRIUMF。\n\n你盯着屏幕，感觉时间在流逝。",
     options: [
-      { label: "抢快 push 到 workshop（-$500，+1 slot，卷赢他们）",
+      { label: "抢快 push 到 arXiv（-$500，+1 slot，卷赢他们）",
         fn: () => { state.cash -= 500; bounceEl("cashM");
-          state.highQCount = (state.highQCount||0) + 2;
-          checkPapers();
-          pushChat("sys","— 你们连夜赶出一个 workshop 版本，先抢了旗帜 —");
+          addBonusSlots(1, "抢快 arXiv 版本");
+          pushChat("sys","— 你们连夜赶出一个 arXiv 版本，先抢了旗帜 —");
           pushTerm("result","⚡ 紧急 push 成功 -$500 +1 slot（已标注先发优先权）"); render(); } },
       { label: "等等看，关注他们后续",
         fn: () => { pushChat("sys","— 你决定以不变应万变，继续打磨自己的版本 —"); } },
@@ -380,7 +431,7 @@ const EVENT_POOL = [
   {
     id: "reviewer2_returns",
     emoji: "🧟", title: "Reviewer 2 回归",
-    body: "新一轮投稿的 review 回来了。你一眼看到 Reviewer 2 的措辞——和三年前那个毁掉你 ICML 论文的人，一字一顿，如出一辙。\n\n「Novelty is incremental at best. Lacks rigor.」\n\n他又回来了。",
+    body: "新一轮 PRC review 回来了。你一眼看到 Reviewer 2 的措辞——和三年前那个揪着你 SRG induced 4N force 不放的人，一字一顿，如出一辙。\n\n「The convergence pattern is not convincing. The uncertainty estimate is optimistic.」\n\n他又回来了。",
     options: [
       { label: "找 AC 申诉（+1 reputation，-3 Judgment）",
         fn: () => { state.reputation = (state.reputation||0) + 1;
@@ -394,24 +445,24 @@ const EVENT_POOL = [
   },
   {
     id: "gpu_maintenance",
-    emoji: "🔌", title: "集群维护",
-    body: "IT 发来系统邮件：\n\n「本周四至周日，学校 GPU 集群将进行例行维护，所有 job 将被强制终止，checkpoint 请自行备份。」\n\n小王已经在跑的三个实验……没有 checkpoint。",
+    emoji: "🔌", title: "超算维护",
+    body: "IT 发来系统邮件：\n\n「本周四至周日，学校 HPC 大内存节点将进行例行维护，所有 job 将被强制终止，checkpoint 请自行备份。」\n\n小王已经在跑的三个 Nmax scan……没有 checkpoint。",
     options: [
       { label: "知道了（所有 student 任务 progress -2）",
         fn: () => {
           state.assignedStudent.filter(s=>!s.done).forEach(s => { s.progress = Math.max(0, s.progress - 2); });
-          pushChat("sys","— 集群维护三天，小王的实验进度倒退了不少 —");
-          pushTerm("result","🔌 GPU 停机 -2 progress（所有 pending 任务）"); render(); } },
+          pushChat("sys","— 集群维护三天，小王的 Nmax scan 进度倒退了不少 —");
+          pushTerm("result","🔌 HPC 停机 -2 progress（所有 pending 任务）"); render(); } },
     ],
   },
   {
     id: "twitter_viral",
-    emoji: "🎰", title: "Twitter 意外火了",
-    body: "你昨晚随手发了一条推——把刚跑出的实验截图配了句「有点东西」——没想到被两个大 V 转发，一觉醒来 10k 转发、500 条评论。\n\n有人问能不能合作，有人说「终于看到靠谱的 AI 研究」，Reviewer 2 的账号也在底下点了个 Like。",
+    emoji: "🎰", title: "X 上意外火了",
+    body: "你昨晚随手发了一条推——把刚跑出的 Tjon line 图配了句「三体力终于听话了」——没想到被两个核理论大 V 转发，一觉醒来 10k 转发、500 条评论。\n\n有人问能不能合作，有人说「终于看到靠谱的 uncertainty estimate」，Reviewer 2 的账号也在底下点了个 Like。",
     options: [
       { label: "知道了！（+3 reputation）",
         fn: () => { state.reputation = (state.reputation||0) + 3;
-          pushTerm("result","🔥 Twitter 爆款 +3 reputation（互联网的馈赠）"); render(); } },
+          pushTerm("result","🔥 X 爆款 +3 reputation（互联网的馈赠）"); render(); } },
     ],
   },
   {
@@ -435,7 +486,7 @@ const EVENT_POOL = [
           pushChat("sys","— 你放松了两天，思路反而更清晰了 +3 Judgment（满血复活）—");
           pushTerm("result","🏖️ 摸鱼有道 +3 Judgment（系主任不在，猫就跳上桌）"); render(); } },
       { label: "加班赶进度（+2 slots，以我手速）",
-        fn: () => { state.highQCount = (state.highQCount||0) + 2; checkPapers();
+        fn: () => { addBonusSlots(2, "系主任度假窗口");
           pushChat("sys","— 利用这个窗口期，你多攒了 2 个高质量成品 —");
           pushTerm("result","🏋️ 内卷成功 +2 slots（系主任不在，你比以前更卷）"); render(); } },
     ],
@@ -459,7 +510,7 @@ const EVENT_POOL = [
   {
     id: "invited_talk",
     emoji: "🎤", title: "受邀演讲",
-    body: "某 AI 独角兽的 Research Director 发来 DM：\n\n「看了你们最近的 preprint，我们公司所有研究员都在讨论。想邀请你来做 invited talk，$2,000 honorarium，差旅全包。」\n\n你打开日历，发现下周还有两个 deadline。",
+    body: "某国家实验室的 Theory Group Leader 发来邮件：\n\n「看了你们最近的 preprint，我们组会上讨论了很久。想邀请你来做 invited talk，$2,000 honorarium，差旅全包。」\n\n你打开日历，发现下周还有两个 deadline。",
     options: [
       { label: "接受（+$2,000，-2 Judgment，本周进度暂停）",
         fn: () => { state.cash += 2000; bounceEl("cashM");
@@ -485,13 +536,13 @@ const EVENT_POOL = [
   {
     id: "best_paper_nom",
     emoji: "🏆", title: "Best Paper 提名",
-    body: "NeurIPS Program Chair 发来私信：\n\n「Congratulations! Your paper has been selected as a Best Paper Award nominee. Please confirm your attendance at the awards ceremony.」\n\n你把那条消息截图发给了父母。",
+    body: "DNP Program Chair 发来私信：\n\n「Congratulations! Your talk has been selected for the Theory Highlights session. Please confirm your attendance.」\n\n你把那条消息截图发给了父母。",
     options: [
       { label: "飞去现场（-$800，-1 周，+5 reputation，值！）",
         fn: () => { state.cash -= 800; state.reputation = (state.reputation||0) + 5; bounceEl("cashM");
           flashScreen("rgba(255,215,0,0.35)"); playDing();
           pushChat("sys","— 你亲自出席颁奖典礼，握到了那块奖牌 🏆 —");
-          pushTerm("result","🏆 Best Paper 现场 -$800 +5 reputation（值得！）"); render(); } },
+          pushTerm("result","🏆 Theory Highlights 现场 -$800 +5 reputation（值得！）"); render(); } },
       { label: "线上 Zoom 参加（省机票，-2 reputation）",
         fn: () => { state.reputation = (state.reputation||0) - 2;
           pushChat("sys","— 你在宿舍用 Zoom 出席……掌声通过扬声器传来，有点尴尬 —");
@@ -501,7 +552,7 @@ const EVENT_POOL = [
   {
     id: "reproduce_crisis",
     emoji: "🔬", title: "复现危机",
-    body: "Retraction Watch 发了一篇博文，圈了你组之前某篇 paper 的图——有读者发现曲线和原始 CSV 对不上。\n\n评论区已经有 47 条回复，两条点了你的 GitHub 账号。",
+    body: "Retraction Watch 发了一篇博文，圈了你组之前某篇 paper 的相移图——有读者发现曲线和公开的 phase-shift table 对不上。\n\n评论区已经有 47 条回复，两条点了你的 GitHub 账号。",
     options: [
       { label: "发 erratum（-2 reputation，保留 paper，诚信满分）",
         fn: () => { state.reputation = (state.reputation||0) - 2;
@@ -513,7 +564,9 @@ const EVENT_POOL = [
             pushChat("sys","— 风波平息了，可能大家懒得追究 —");
             pushTerm("result","😅 侥幸过关（别再赌了）");
           } else {
-            state.papers = Math.max(0, state.papers - 1); state.hiddenFraud = Math.max(0, state.hiddenFraud - 1);
+            state.papers = Math.max(0, state.papers - 1);
+            if ((state.hiddenFraud || 0) > 0) state.hiddenFraud = Math.max(0, state.hiddenFraud - 1);
+            else state.legacyDebt = Math.max(0, (state.legacyDebt || 0) - 1);
             pushChat("sys","— 论文被撤稿，Retraction Watch 发了正式报道 😱 —");
             pushTerm("result","💀 撤稿 -1 paper（嘴硬输了）"); screenShake(); flashScreen("rgba(255,83,112,0.4)");
           }
@@ -523,7 +576,7 @@ const EVENT_POOL = [
   {
     id: "shower_idea",
     emoji: "💡", title: "洗澡时的灵感",
-    body: "凌晨 1 点，你在洗澡。\n\n热水哗哗流着，脑子却突然高速转动——一个把 attention 机制和强化学习信号结合的新框架，清晰得像是被人在白板上写出来的。\n\n你冲出浴室，头发没擦，拿起手机开始录音。",
+    body: "凌晨 1 点，你在洗澡。\n\n热水哗哗流着，脑子却突然高速转动——一个把 SRG flow、三体力拟合和少体 observable uncertainty 连起来的新方案，清晰得像是被人在白板上写出来的。\n\n你冲出浴室，头发没擦，拿起手机开始录音。",
     options: [
       { label: "马上写 proposal（下次 NSF 成功率 +30%）",
         fn: () => { state.nsfBonus = (state.nsfBonus||0) + 30;
@@ -536,7 +589,7 @@ const EVENT_POOL = [
   {
     id: "github_fork",
     emoji: "👾", title: "GitHub 被 500 人 fork",
-    body: "GitHub 通知涌进来：你上周整理的代码仓库在 r/MachineLearning 被人分享，一夜之间被 fork 了 507 次，还有人在 Issues 里问「能出个 paper 版本吗？」\n\n500 个人正在用你的代码做实验。",
+    body: "GitHub 通知涌进来：你上周整理的 few-body benchmark 仓库在 Nuclear Theory 邮件列表里被人分享，一夜之间被 fork 了 507 次，还有人在 Issues 里问「能不能加 AV18 和 N3LO 对比？」\n\n500 个人正在用你的代码做实验。",
     options: [
       { label: "知道了！（+2 reputation，互联网馈赠）",
         fn: () => { state.reputation = (state.reputation||0) + 2;
@@ -568,12 +621,25 @@ function startGame(name) {
     rivalIdx: 0,
     rivalPapers: 0,
     studentMood: "😊",
+    studentRoute: null,
+    studentRouteProgress: 0,
+    studentRouteNotice: false,
+    legacyDebt: 0,
+    studentGuidance: 0,
     excuseCount: 0,
     ended: false,
     seq: 0,
     tickerIdx: 0,
     hiddenFraud: 0,
     suspiciousPending: [],
+    bonusSlots: 0,
+    focusMax: FOCUS_PER_WEEK,
+    focus: FOCUS_PER_WEEK,
+    nextWeekFocusBonus: 0,
+    overworked: false,
+    auditShield: 0,
+    weeklyGoal: null,
+    weekStats: null,
     quipWeekCounter: 0,
     // System A: dramatic arc
     act: 1,
@@ -590,6 +656,7 @@ function startGame(name) {
   document.getElementById("meName").textContent = name;
   document.getElementById("studentName").textContent = "小王";
   spawnInboxForWeek();
+  beginWeek({ silent: true });
 
   // Print ASCII banner with typewriter
   const termEl = document.getElementById("termBody");
@@ -629,6 +696,7 @@ function startGame(name) {
   document.getElementById("desktop").addEventListener("mousemove", handleParallax);
 
   render();
+  setTimeout(showStudentOnboardingModal, 650);
 }
 
 // ============ PARALLAX AURORA ============
@@ -662,20 +730,266 @@ function rotateTicker() {
   }, 100);
 }
 
+// ============ STUDENT ONBOARDING ============
+function showStudentOnboardingModal() {
+  if (!state || state.studentRoute || state.ended) return;
+  showModal(
+    "👩‍🎓 新生入组路线",
+    `小王刚进组。现实问题不是「她努不努力」，而是你怎么把一个新人接到课题组已有的理论核物理代码体系里。\n\n路线 A：先系统读文献半年。她会理解物理，但 12 周 tenure 冲刺里前半局几乎没有产出。\n\n路线 B：直接跑组内旧代码。她很快出图，但容易黑箱误用：channel 顺序、phase convention、cutoff、Coulomb、3N matrix element 任何一个错都能让结果看起来“差不多”。\n\n路线 C：先复现 benchmark。先让她跑 deuteron / triton / He4 sanity checks，边读关键文献边上主线。现实里最稳，但没有纯黑箱跑得快。`,
+    false,
+    [
+      { label: "📚 先读文献半年", fn: () => chooseStudentRoute("literature") },
+      { label: "💻 直接跑组内旧代码", fn: () => chooseStudentRoute("legacy") },
+      { label: "🧪 先复现 benchmark（推荐）", fn: () => chooseStudentRoute("reproduce") },
+    ]
+  );
+}
+
+function chooseStudentRoute(route) {
+  const r = STUDENT_ROUTES[route] || STUDENT_ROUTES.reproduce;
+  state.studentRoute = route;
+  state.studentRouteProgress = 0;
+  state.studentRouteNotice = false;
+  pushChat("sys", `— 入组路线已定：${r.badge}。${r.short} —`);
+  if (route === "literature") {
+    pushChat("them", ["老师那我先把 Machleidt、Epelbaum、Hebeler 和 Roth 那几篇啃掉", "可能前几周不会有图", "但我会把 convention 记清楚"]);
+    pushTerm("dim", "  [onboarding] literature-first: W1-W6 student progress slow, quality/risk improves after W7");
+  } else if (route === "legacy") {
+    pushChat("them", ["老师我直接跑 scripts/run_he4_scan.sh 了", "先把图交出来", "具体 channel convention 我边跑边看"]);
+    pushTerm("err", "  [onboarding] legacy-code: early progress fast, but black-box risk and suspicious delivery chance up");
+  } else {
+    pushChat("them", ["老师我先复现 deuteron/triton/He4 benchmark", "旧代码能跑不算数，sanity check 对上才算数"]);
+    pushTerm("result", "  [onboarding] benchmark-first: balanced progress, lower risk, good long-run quality");
+  }
+  render();
+}
+
+function routeConfig() {
+  return STUDENT_ROUTES[state.studentRoute] ? state.studentRoute : "reproduce";
+}
+
+function labRisk() {
+  return (state.hiddenFraud || 0) + (state.legacyDebt || 0);
+}
+
+function checkStudentRouteMilestone() {
+  const route = routeConfig();
+  if (state.studentRouteNotice) return;
+  if (route === "literature" && (state.studentRouteProgress || 0) >= 6) {
+    state.studentRouteNotice = true;
+    state.reputation = (state.reputation || 0) + 1;
+    pushChat("sys", "— 小王完成系统文献训练：后续学生任务质量提高，风险降低，+1 reputation —");
+    pushTerm("result", "📚 文献半年压缩完成：student quality up, risk down, +1 reputation");
+    bounceEl("reputationM");
+  } else if (route === "reproduce" && (state.studentRouteProgress || 0) >= 3) {
+    state.studentRouteNotice = true;
+    addBonusSlots(1, "deuteron/triton/He4 benchmark 复现完成");
+    pushChat("sys", "— 小王把组内旧代码的基础 benchmark 复现了。之后再跑主线，可信度高很多。—");
+  }
+}
+
+function taskFit(t) {
+  return TASK_FIT[t.id] || { ai: 0, student: { literature: 0, legacy: 0, reproduce: 0 }, note: "通用任务" };
+}
+
+function aiTaskQualityModifier(t) {
+  return taskFit(t).ai || 0;
+}
+
+function studentTaskQualityModifier(t) {
+  const route = routeConfig();
+  return (taskFit(t).student?.[route] || 0) + Math.min(0.16, (state.studentGuidance || 0) * 0.04);
+}
+
+function fitClass(v) {
+  if (v >= 0.08) return "good";
+  if (v <= -0.05) return "bad";
+  return "mid";
+}
+
+function fitLabel(v) {
+  if (v >= 0.12) return "强";
+  if (v >= 0.04) return "可";
+  if (v <= -0.08) return "弱";
+  if (v < 0) return "险";
+  return "中";
+}
+
+function taskFitHtml(t) {
+  const ai = aiTaskQualityModifier(t);
+  const student = state.studentRoute ? studentTaskQualityModifier(t) : 0;
+  const studentLabel = state.studentRoute ? `学生适配 ${fitLabel(student)}` : "学生适配 待定";
+  return `
+    <div class="fitLine">
+      <span class="fitPill ${fitClass(ai)}">AI适配 ${fitLabel(ai)}</span>
+      <span class="fitPill ${state.studentRoute ? fitClass(student) : "mid"}">${studentLabel}</span>
+      <span class="fitPill mid">${esc(taskFit(t).note)}</span>
+    </div>`;
+}
+
+// ============ WEEKLY STRATEGY LAYER ============
+function beginWeek(opts = {}) {
+  const bonus = state.nextWeekFocusBonus || 0;
+  state.focusMax = FOCUS_PER_WEEK + bonus;
+  state.focus = state.focusMax;
+  state.nextWeekFocusBonus = 0;
+  state.overworked = false;
+  state.weekStats = {
+    ai: 0,
+    student: 0,
+    review: 0,
+    audit: 0,
+    mentor: 0,
+    nsf: 0,
+    highQStart: state.highQCount || qualityPieces(),
+    papersStart: state.papers || 0,
+    cashStart: state.cash || 0,
+    riskStart: labRisk(),
+  };
+  state.weeklyGoal = createWeeklyGoal();
+  if (!opts.silent) {
+    pushTerm("dim", `  [Week ${state.week} plan] focus=${state.focus}/${state.focusMax} · KPI: ${state.weeklyGoal.title}`);
+  }
+}
+
+function createWeeklyGoal() {
+  const risk = labRisk();
+  const week = state.week || 1;
+  if (risk > 0) {
+    return {
+      type: "audit",
+      title: "做 1 次内部审计，清掉潜在爆雷",
+      reward: "奖励：+1 reputation",
+      completed: false,
+    };
+  }
+  if (state.cash < 1200 && week >= 4 && !state.grantApplied) {
+    return {
+      type: "cash",
+      title: "本周结束现金保持在 $800 以上",
+      reward: "奖励：+1 下周行动点",
+      completed: false,
+    };
+  }
+  const goals = [
+    {
+      type: "ai",
+      target: 2,
+      title: "用 AI 完成 2 个任务",
+      reward: "奖励：+1 高质量成品槽",
+      completed: false,
+    },
+    {
+      type: "student",
+      target: 2,
+      title: "给小王派 2 个任务，压榨 pipeline",
+      reward: "奖励：+$500 系内小额报销",
+      completed: false,
+    },
+    {
+      type: "slot",
+      target: 2,
+      title: "本周攒 2 个高质量成品",
+      reward: "奖励：+1 reputation",
+      completed: false,
+    },
+    {
+      type: "balance",
+      title: "AI 和小王各推进 1 次，保持组合拳",
+      reward: "奖励：+1 下周行动点",
+      completed: false,
+    },
+  ];
+  return goals[(week + Math.floor(Math.random() * goals.length)) % goals.length];
+}
+
+function spendFocus(label) {
+  if ((state.focus || 0) <= 0) {
+    showAdvisorQuip(`本周行动点用完了。要么点「爆肝 +1」，要么下班进入下一周。`);
+    pushTerm("err", `✗ no focus left for ${label}`);
+    screenShake();
+    render();
+    return false;
+  }
+  state.focus -= 1;
+  bounceEl("focusM");
+  return true;
+}
+
+function qualityPieces() {
+  return state.aiDone.filter(d => d.quality >= 0.68).length +
+    state.assignedStudent.filter(s => s.done && s.quality >= 0.55).length +
+    (state.bonusSlots || 0);
+}
+
+function addBonusSlots(n, reason) {
+  state.bonusSlots = (state.bonusSlots || 0) + n;
+  if (reason) pushTerm("result", `🏆 ${reason} +${n} 高质量成品槽`);
+  checkPapers();
+  checkWeeklyGoalCompletion();
+}
+
+function checkWeeklyGoalCompletion(opts = {}) {
+  const g = state.weeklyGoal;
+  if (!g || g.completed || !state.weekStats) return false;
+  const stats = state.weekStats;
+  const gainedSlots = Math.max(0, (state.highQCount || qualityPieces()) - (stats.highQStart || 0));
+  let done = false;
+  if (g.type === "ai") done = stats.ai >= g.target;
+  else if (g.type === "student") done = stats.student >= g.target;
+  else if (g.type === "slot") done = gainedSlots >= g.target;
+  else if (g.type === "balance") done = stats.ai >= 1 && stats.student >= 1;
+  else if (g.type === "audit") done = stats.audit >= 1 && labRisk() < (stats.riskStart || 0);
+  else if (g.type === "cash") done = opts.finalize && state.cash >= 800;
+  if (!done) return false;
+
+  g.completed = true;
+  if (g.type === "ai") addBonusSlots(1, "本周 KPI 完成");
+  else if (g.type === "student") { state.cash += 500; bounceEl("cashM"); }
+  else if (g.type === "slot") { state.reputation = (state.reputation || 0) + 1; bounceEl("reputationM"); }
+  else if (g.type === "balance") state.nextWeekFocusBonus = (state.nextWeekFocusBonus || 0) + 1;
+  else if (g.type === "audit") { state.reputation = (state.reputation || 0) + 1; bounceEl("reputationM"); }
+  else if (g.type === "cash") state.nextWeekFocusBonus = (state.nextWeekFocusBonus || 0) + 1;
+
+  pushTerm("result", `✅ 本周 KPI 完成：${g.title} · ${g.reward}`);
+  pushChat("sys", `— 本周 KPI 完成：${g.title} —`);
+  playDing();
+  flashScreen("rgba(0,232,123,0.18)");
+  render();
+  return true;
+}
+
 // ============ TASK DISPATCH ============
 function spawnInboxForWeek() {
   const n = 2 + Math.floor(Math.random() * 2);
-  for (let i=0; i<n; i++) {
-    const tpl = TASK_POOL[Math.floor(Math.random() * TASK_POOL.length)];
+  const activeTaskKeys = new Set(
+    state.inbox
+      .filter(t => !t.assigned)
+      .map(taskKey)
+  );
+  const usedThisSpawn = new Set();
+  let candidates = TASK_POOL.filter(t => !activeTaskKeys.has(taskKey(t)));
+  if (candidates.length < n) candidates = [...TASK_POOL];
+
+  for (const tpl of shuffle(candidates).slice(0, n)) {
+    const key = taskKey(tpl);
+    if (usedThisSpawn.has(key)) continue;
+    usedThisSpawn.add(key);
     state.inbox.push({ ...tpl, uid: ++state.seq, assigned: null });
   }
 }
 
 function assignStudent(uid) {
   resumeAudio(); playClick();
+  if (!state.studentRoute) {
+    showStudentOnboardingModal();
+    return;
+  }
   const t = state.inbox.find(x => x.uid === uid);
   if (!t || t.assigned) return;
+  if (!spendFocus("delegate to student")) return;
   t.assigned = "student";
+  state.weekStats.student += 1;
   state.assignedStudent.push({ ...t, age:0, progress:0, done:false, quality:0 });
   pushChat("me", `@小王 帮我处理下：「${t.name}」— ${t.subj}`);
   setTimeout(() => {
@@ -683,6 +997,7 @@ function assignStudent(uid) {
     playPop();
     render();
   }, 500);
+  checkWeeklyGoalCompletion();
   render();
 }
 
@@ -691,7 +1006,8 @@ function assignAI(uid) {
   const t = state.inbox.find(x => x.uid === uid);
   if (!t || t.assigned) return;
   const mode = AI_MODES[state.mode];
-  const cost = +(mode.cost * t.workload / 3).toFixed(2);
+  const discount = state.aiDiscount ? 0.5 : 1;
+  const cost = +(mode.cost * t.workload / 3 * discount).toFixed(2);
   if (state.cash < cost) {
     // Error: flash red, shake
     pushTerm("err", `✗ insufficient balance ($${state.cash.toFixed(2)} < $${cost})`);
@@ -703,12 +1019,14 @@ function assignAI(uid) {
     render();
     return;
   }
+  if (!spendFocus("run AI")) return;
   t.assigned = "ai";
   state.cash -= cost;
   state.aiCost += cost;
+  state.weekStats.ai += 1;
   bounceEl("cashM");
   // 方差 ±8% → zero-shot 范围 0.62~0.78，有真实波动感（有时合格有时翻车）
-  const q = Math.max(0, Math.min(1, mode.q + (Math.random()-0.5)*0.16));
+  const q = Math.max(0, Math.min(1, mode.q + aiTaskQualityModifier(t) + (Math.random()-0.5)*0.16));
 
   // Typewriter streaming output
   const cmdText = `$ claude run --mode=${mode.name} --task="${t.name}"`;
@@ -731,6 +1049,7 @@ function assignAI(uid) {
         playBlip();
         if (!highQ) showAdvisorQuip(`AI 这个 ${qualityPct}% 质量组不成论文——换个更贵的 mode 试试？`);
         checkPapers();
+        checkWeeklyGoalCompletion();
         render();
       }
     }
@@ -818,7 +1137,12 @@ function showSuspiciousModal(s) {
         fn: () => {
           s.suspicious = false;
           s.done = true;
-          state.hiddenFraud += 1;
+          if ((state.auditShield || 0) > 0) {
+            state.auditShield -= 1;
+            pushTerm("result", "🛡️ 审计护盾生效：这次可疑交付未增加撤稿风险");
+          } else {
+            state.hiddenFraud += 1;
+          }
           state.suspiciousPending = state.suspiciousPending.filter(x => x !== s);
           pushChat("sys", `— 你选择相信小王，任务「${s.name}」标记为完成（内心有点虚…）—`);
           checkPapers();
@@ -857,6 +1181,71 @@ function updateSuspiciousCounter() {
   }
 }
 
+function studentRouteModifiers() {
+  const route = routeConfig();
+  if (route === "literature") {
+    if ((state.studentRouteProgress || 0) < 6) {
+      return {
+        studyMode: true,
+        excuseChance: 0.65,
+        progressBonus: -1,
+        neededDelta: 2,
+        minAge: 5,
+        qualityBonus: 0,
+        suspiciousDelta: -0.18,
+        suspiciousAge: 3,
+      };
+    }
+    return {
+      excuseChance: 0.32,
+      progressBonus: 0,
+      neededDelta: -1,
+      minAge: 3,
+      qualityBonus: 0.18,
+      suspiciousDelta: -0.25,
+      suspiciousAge: 3,
+    };
+  }
+  if (route === "legacy") {
+    return {
+      excuseChance: 0.34,
+      progressBonus: 1,
+      neededDelta: -1,
+      minAge: 2,
+      qualityBonus: -0.10,
+      suspiciousDelta: 0.30,
+      suspiciousAge: 4,
+    };
+  }
+  const reproducing = (state.studentRouteProgress || 0) < 3;
+  return {
+    excuseChance: reproducing ? 0.44 : 0.34,
+    progressBonus: 0,
+    neededDelta: reproducing ? 0 : -1,
+    minAge: 3,
+    qualityBonus: reproducing ? 0.05 : 0.12,
+    suspiciousDelta: reproducing ? -0.15 : -0.22,
+    suspiciousAge: 3,
+  };
+}
+
+function advanceStudentOnboarding() {
+  const route = routeConfig();
+  state.studentRouteProgress = (state.studentRouteProgress || 0) + 1;
+  const p = state.studentRouteProgress;
+  if (route === "literature" && p <= 6) {
+    pushChat("them", pick(ONBOARDING_LINES.literatureStudy));
+    pushTerm("dim", `  [student onboarding] 文献训练 ${p}/6：慢产出，换后期质量`);
+    checkStudentRouteMilestone();
+  } else if (route === "reproduce" && p <= 3) {
+    pushChat("them", pick(ONBOARDING_LINES.reproduceBench));
+    pushTerm("dim", `  [student onboarding] benchmark 复现 ${p}/3：先 sanity check，再上主线`);
+    checkStudentRouteMilestone();
+  } else if (route === "legacy" && Math.random() < 0.35) {
+    pushChat("them", pick(ONBOARDING_LINES.legacyFast));
+  }
+}
+
 // ============ WEEK END ============
 function endWeek() {
   if (state.ended) return;
@@ -876,23 +1265,30 @@ function endWeek() {
 
   // Student progression
   const active = state.assignedStudent.filter(s => !s.done);
+  const routeMod = studentRouteModifiers();
   for (const s of active) {
     s.age += 1;
     const r = Math.random();
-    if (r < 0.5) {
-      pushChat("them", pick(STUDENT_LINES.excuse), "excuse");
+    let gained = 0;
+    if (routeMod.studyMode && r < 0.72) {
+      pushChat("them", pick(ONBOARDING_LINES.literatureStudy));
+    } else if (r < routeMod.excuseChance) {
+      const legacyLine = routeConfig() === "legacy" && Math.random() < 0.45;
+      pushChat("them", legacyLine ? pick(ONBOARDING_LINES.legacyFast) : pick(STUDENT_LINES.excuse), "excuse");
       state.excuseCount = (state.excuseCount || 0) + 1;
     } else if (r < 0.8) {
-      s.progress += 1;
+      gained = 1;
       pushChat("them", pick(STUDENT_LINES.progress));
     } else {
-      s.progress += 2;
+      gained = 2;
       pushChat("them", pick(STUDENT_LINES.progress));
     }
-    const needed = s.workload + Math.floor(Math.random() * 3);
-    if (s.progress >= needed && s.age >= 3) {
+    if (gained > 0) s.progress += Math.max(0, gained + routeMod.progressBonus);
+    const needed = Math.max(1, s.workload + Math.floor(Math.random() * 3) + routeMod.neededDelta);
+    if (s.progress >= needed && s.age >= routeMod.minAge) {
       // Suspicious delivery check: high-workload tasks finished too fast
-      const isSuspicious = (s.workload >= 4 && s.age <= 2 && Math.random() < 0.5);
+      const suspiciousChance = Math.max(0.05, Math.min(0.85, 0.45 + routeMod.suspiciousDelta));
+      const isSuspicious = (s.workload >= 4 && s.age <= routeMod.suspiciousAge && Math.random() < suspiciousChance);
       if (isSuspicious) {
         s.done = false;
         s.suspicious = true;
@@ -902,11 +1298,17 @@ function endWeek() {
         updateSuspiciousCounter();
       } else {
         s.done = true;
-        s.quality = 0.45 + Math.random() * 0.30;
+        s.quality = Math.max(0.25, Math.min(0.95, 0.45 + Math.random() * 0.30 + routeMod.qualityBonus + studentTaskQualityModifier(s)));
+        if ((state.studentGuidance || 0) > 0) state.studentGuidance -= 1;
+        if (routeConfig() === "legacy" && Math.random() < 0.25) {
+          state.legacyDebt = (state.legacyDebt || 0) + 1;
+          pushTerm("err", "⚠️ legacy-code debt +1：结果快，但旧代码黑箱债务增加");
+        }
         pushChat("them", pick(STUDENT_LINES.done));
       }
     }
   }
+  advanceStudentOnboarding();
 
   // 一个学生就一份工资——不管她手上多少活
   const weekCost = active.length > 0 ? STUDENT_STIPEND : 0;
@@ -924,7 +1326,13 @@ function endWeek() {
     bounceEl("rivalPapers");
   }
 
+  checkPapers();
+  checkWeeklyGoalCompletion({ finalize: true });
+
   state.week += 1;
+  if (state.week > TOTAL_WEEKS) return tenureReview();
+  spawnInboxForWeek();
+  beginWeek();
 
   // Advisor quip toast every 2-3 weeks
   state.quipWeekCounter = (state.quipWeekCounter || 0) + 1;
@@ -954,10 +1362,8 @@ function endWeek() {
     }
   }
 
-  spawnInboxForWeek();
   state.rivalIdx = (state.rivalIdx + 1) % RIVAL_TICKER.length;
   rotateTicker();
-  checkPapers();
   bounceEl("weekM");
   bounceEl("cashM");
 
@@ -976,7 +1382,6 @@ function endWeek() {
   // System A: check act transitions & milestone events
   checkActTransition();
 
-  if (state.week > TOTAL_WEEKS) return tenureReview();
   render();
 }
 
@@ -995,8 +1400,7 @@ function updateMood() {
 }
 
 function checkPapers() {
-  const highQ = state.aiDone.filter(d => d.quality >= 0.68).length +
-                state.assignedStudent.filter(s => s.done && s.quality >= 0.55).length;
+  const highQ = qualityPieces();
   state.highQCount = highQ;
   const total = Math.floor(highQ / 4);
   if (total > state.papers) {
@@ -1028,9 +1432,13 @@ function openNSFGrant() {
     showAdvisorQuip("每局只能申请一次 NSF，省着点用。");
     return;
   }
+  if ((state.focus || 0) <= 0) {
+    showAdvisorQuip("本周行动点用完了，NSF proposal 写不动了。");
+    return;
+  }
   resumeAudio(); playClick();
-  const kwOpts = ["efficiency","safety","reasoning","alignment","scaling","data"];
-  const hotKws = ["safety","alignment"];
+  const kwOpts = ["ab initio", "uncertainty", "three-body forces", "neutron-rich nuclei", "SRG", "open science"];
+  const hotKws = ["uncertainty", "neutron-rich nuclei"];
   const selected = [];
 
   // Build keyword selection modal body
@@ -1041,13 +1449,15 @@ function openNSFGrant() {
 
   const hotCount = kws.filter(k => hotKws.includes(k)).length;
   const successRate = Math.min(95, 30 + 20 * state.papers + 5 * hotCount + (state.nsfBonus||0));
-  const bodyText = `你决定以以下 3 个方向提交 Research Statement：\n  1. "${kw1}"  2. "${kw2}"  3. "${kw3}"\n\n热词命中：${hotCount}（safety / alignment 现在很热）\n你的发表数：${state.papers} 篇\n\n综合成功率：${successRate}%\n\n祝你好运——Reviewer 3 正在虎视眈眈。`;
+  const bodyText = `你决定以以下 3 个方向提交 Research Statement：\n  1. "${kw1}"  2. "${kw2}"  3. "${kw3}"\n\n热词命中：${hotCount}（uncertainty / neutron-rich nuclei 现在很热）\n你的发表数：${state.papers} 篇\n\n综合成功率：${successRate}%\n\n祝你好运——Reviewer 3 正在虎视眈眈。`;
 
   showModal("📄 申请 NSF Grant", bodyText, false, [
     {
       label: `提交申请（成功率 ${successRate}%）`,
       fn: () => {
+        if (!spendFocus("submit NSF")) return;
         state.grantApplied = true;
+        state.weekStats.nsf += 1;
         state.nsfBonus = 0;
         if (Math.random() * 100 < successRate) {
           state.cash += 3000; bounceEl("cashM");
@@ -1076,25 +1486,28 @@ function rollPeerReviewOffer() {
     uid: ++state.seq,
     id: "peer_review_offer",
     emoji: "📝", name: "审稿接单",
-    from: "pc-chair@icml2026.org",
-    subj: "Invitation: PC Reviewer · ICML 2026 · +$200",
-    body: "Dear Prof. " + state.name + ",\n\nWe would like to invite you to serve as a reviewer for ICML 2026. Honorarium: $200 per paper reviewed. Estimated effort: 1 unit of Judgment.\n\n-- PC Chair",
+    from: "editor@prc.aps.org",
+    subj: "Invitation: Referee · Physical Review C · +$200",
+    body: "Dear Prof. " + state.name + ",\n\nWe would like to invite you to review a manuscript on chiral interactions and few-body benchmarks. Honorarium: $200. Estimated effort: 1 unit of Judgment.\n\n-- PRC Editor",
     workload: 1,
     assigned: null,
     isPeerReview: true,
   };
   state.inbox.push(inboxItem);
-  pushChat("sys","— 📝 ICML PC Chair 发来审稿邀请，+$200 接不接？—");
+  pushChat("sys","— 📝 PRC Editor 发来审稿邀请，+$200 接不接？—");
 }
 
 function acceptPeerReview(uid) {
   resumeAudio(); playClick();
   const t = state.inbox.find(x => x.uid === uid);
   if (!t) return;
+  if (!spendFocus("peer review")) return;
   t.assigned = "done";
   state.cash += 200; bounceEl("cashM");
+  state.weekStats.review += 1;
   pushTerm("result","📝 peer review 接单 +$200（学界互助，回报立竿见影）");
   pushChat("sys","— 你接受了审稿邀请，$200 进账 —");
+  checkWeeklyGoalCompletion();
   render();
 }
 
@@ -1104,6 +1517,238 @@ function skipPeerReview(uid) {
   if (!t) return;
   t.assigned = "skip";
   pushChat("sys","— 你婉拒了审稿邀请 —");
+  render();
+}
+
+// ============ STRATEGY ACTIONS ============
+function runInternalAudit() {
+  if (state.ended) return;
+  resumeAudio(); playClick();
+  if (state.cash < AUDIT_COST) {
+    pushTerm("err", `✗ audit needs $${AUDIT_COST}, current $${Math.round(state.cash)}`);
+    screenShake();
+    return;
+  }
+  if (!spendFocus("internal audit")) return;
+  state.cash -= AUDIT_COST;
+  state.weekStats.audit += 1;
+  bounceEl("cashM");
+
+  if ((state.hiddenFraud || 0) > 0) {
+    state.hiddenFraud = Math.max(0, state.hiddenFraud - 1);
+    pushTerm("result", `🔍 内部审计完成 -$${AUDIT_COST}：清除 1 个撤稿风险`);
+    pushChat("sys", "— 你抽查了原始数据和实验日志，清掉一个潜在爆雷点 —");
+  } else if ((state.legacyDebt || 0) > 0) {
+    state.legacyDebt = Math.max(0, state.legacyDebt - 1);
+    pushTerm("result", `🔍 内部审计完成 -$${AUDIT_COST}：清除 1 个旧代码黑箱债务`);
+    pushChat("sys", "— 你重跑了 benchmark 并核对 channel convention，清掉一个旧代码黑箱债务 —");
+  } else {
+    state.auditShield = (state.auditShield || 0) + 1;
+    pushTerm("result", `🔍 内部审计完成 -$${AUDIT_COST}：未发现问题，下次可疑交付有 1 次护盾`);
+    pushChat("sys", "— 你提前整理了实验记录。短期没产出，但之后睡得更稳 —");
+  }
+  checkWeeklyGoalCompletion();
+  render();
+}
+
+function overworkForFocus() {
+  if (state.ended) return;
+  resumeAudio(); playClick();
+  if (state.overworked) {
+    showAdvisorQuip("本周已经爆肝过了，再爆就不是策略，是事故。");
+    return;
+  }
+  if (state.cash < OVERWORK_COST) {
+    pushTerm("err", `✗ overwork needs $${OVERWORK_COST}, current $${Math.round(state.cash)}`);
+    screenShake();
+    return;
+  }
+  state.cash -= OVERWORK_COST;
+  state.focus += 1;
+  state.focusMax += 1;
+  state.overworked = true;
+  bounceEl("cashM");
+  bounceEl("focusM");
+  pushTerm("result", `☕ 爆肝一晚 -$${OVERWORK_COST}：本周行动点 +1`);
+  pushChat("sys", "— 你用咖啡和外卖换来一个额外行动点。代价稍后结算。—");
+  if (Math.random() < 0.35) {
+    state.hiddenFraud = (state.hiddenFraud || 0) + 1;
+    pushTerm("err", "⚠️ 疲劳操作埋下一个潜在错误：risk +1");
+    screenShake();
+  }
+  render();
+}
+
+function holdGroupMeeting() {
+  if (state.ended) return;
+  resumeAudio(); playClick();
+  if (!state.studentRoute) {
+    showStudentOnboardingModal();
+    return;
+  }
+  if (!spendFocus("group meeting")) return;
+
+  state.weekStats.mentor += 1;
+  state.studentGuidance = (state.studentGuidance || 0) + 1;
+  const route = routeConfig();
+  const active = state.assignedStudent.filter(s => !s.done);
+  const progressGain = route === "reproduce" ? 2 : 1;
+  active.forEach(s => { s.progress += progressGain; });
+
+  if (route === "literature" && (state.studentRouteProgress || 0) < 6) {
+    state.studentRouteProgress += 1;
+    pushChat("them", ["老师组会讲完我清楚多了", "我把 SRG / cutoff / observable 的关系画成一张图了"]);
+    pushTerm("result", `🧑‍🏫 组会指导：文献训练 +1（${state.studentRouteProgress}/6），下一次学生交付质量提高`);
+    checkStudentRouteMilestone();
+  } else if (route === "legacy") {
+    if ((state.legacyDebt || 0) > 0) {
+      state.legacyDebt = Math.max(0, state.legacyDebt - 1);
+      pushTerm("result", "🧑‍🏫 组会指导：追问旧代码 sanity check，legacy debt -1");
+    } else {
+      state.auditShield = (state.auditShield || 0) + 1;
+      pushTerm("result", "🧑‍🏫 组会指导：提前核对 channel convention，获得 1 次审计护盾");
+    }
+    pushChat("them", ["老师我回去把 deuteron sanity check 补上", "以后不直接相信旧脚本输出"]);
+  } else {
+    if ((state.studentRouteProgress || 0) < 3) {
+      state.studentRouteProgress += 1;
+      checkStudentRouteMilestone();
+    }
+    pushTerm("result", active.length > 0
+      ? `🧑‍🏫 组会指导：active 学生任务 progress +${progressGain}，下一次学生交付质量提高`
+      : "🧑‍🏫 组会指导：benchmark 训练 +1，下一次学生交付质量提高");
+    pushChat("them", ["老师这个 benchmark 的判断标准清楚了", "我先看 deuteron，再看 triton，最后再碰 He4"]);
+  }
+
+  if (active.length === 0) {
+    pushChat("sys", "— 这次组会没有 active 学生任务，但提高了下一次学生交付质量 —");
+  } else {
+    pushChat("sys", `— 组会把 ${active.length} 个学生任务往前推了一步 —`);
+  }
+  checkWeeklyGoalCompletion();
+  render();
+}
+
+function getAutoPlan() {
+  const pending = state.inbox.filter(t => !t.assigned);
+  const normalPending = pending.filter(t => !t.isPeerReview);
+  const peer = pending.find(t => t.isPeerReview);
+  const focusLeft = state.focus || 0;
+  const risk = labRisk();
+  const activeStudent = state.assignedStudent.filter(s => !s.done);
+
+  if (state.suspiciousPending && state.suspiciousPending.length > 0) {
+    return {
+      text: "先处理可疑交付，避免最后撤稿。",
+      action: () => showSuspiciousModal(state.suspiciousPending[0]),
+    };
+  }
+  if (risk > 0 && focusLeft > 0 && state.cash >= AUDIT_COST) {
+    return {
+      text: "当前有撤稿风险，建议先内部审计。",
+      action: runInternalAudit,
+    };
+  }
+  if (state.cash < 900 && state.week >= 4 && !state.grantApplied && focusLeft > 0) {
+    return {
+      text: "现金紧张，优先打开 NSF 申请。",
+      action: openNSFGrant,
+    };
+  }
+  if (focusLeft <= 0) {
+    if (!state.overworked && state.cash >= OVERWORK_COST && normalPending.length > 0) {
+      return {
+        text: "行动点用完但还有任务，可以爆肝换 1 点。",
+        action: overworkForFocus,
+      };
+    }
+    return {
+      text: "本周行动点用完，进入下一周结算。",
+      action: endWeek,
+    };
+  }
+  if (activeStudent.length >= 2 && focusLeft > 0) {
+    return {
+      text: "学生任务堆积，先开组会把旧代码和 benchmark 讲清楚。",
+      action: holdGroupMeeting,
+    };
+  }
+  if (state.weeklyGoal && !state.weeklyGoal.completed) {
+    const g = state.weeklyGoal;
+    if ((g.type === "audit") && state.cash >= AUDIT_COST) {
+      return { text: "本周 KPI 要求审计，先做内部审计。", action: runInternalAudit };
+    }
+    if ((g.type === "student" || g.type === "balance") && normalPending.length > 0 && (state.weekStats?.student || 0) < (g.type === "student" ? g.target : 1)) {
+      const task = chooseStudentTask(normalPending);
+      return { text: `本周 KPI 需要派给小王：${task.name}。`, action: () => assignStudent(task.uid) };
+    }
+    if ((g.type === "ai" || g.type === "balance") && normalPending.length > 0 && (state.weekStats?.ai || 0) < (g.type === "ai" ? g.target : 1)) {
+      const task = chooseAITask(normalPending);
+      return { text: `本周 KPI 需要跑 AI：${task.name}。`, action: () => autoRunAI(task) };
+    }
+  }
+  if (peer && state.cash < 1500) {
+    return {
+      text: "缺钱时审稿的 $200 有用，接一单。",
+      action: () => acceptPeerReview(peer.uid),
+    };
+  }
+  if (normalPending.length > 0) {
+    const studentBacklog = state.assignedStudent.filter(s => !s.done).length;
+    if (studentBacklog < 2 && state.week <= 5 && state.cash > STUDENT_STIPEND * 2) {
+      const task = chooseStudentTask(normalPending);
+      return { text: `早期让小王占一个 pipeline：${task.name}。`, action: () => assignStudent(task.uid) };
+    }
+    const task = chooseAITask(normalPending);
+    return { text: `最稳下一步：用当前最强可负担模型跑 ${task.name}。`, action: () => autoRunAI(task) };
+  }
+  return {
+    text: "Inbox 已清空，推进到下一周。",
+    action: endWeek,
+  };
+}
+
+function chooseStudentTask(tasks) {
+  return [...tasks].sort((a, b) => b.workload - a.workload)[0];
+}
+
+function chooseAITask(tasks) {
+  return [...tasks].sort((a, b) => a.workload - b.workload)[0];
+}
+
+function autoRunAI(task) {
+  const best = chooseAffordableMode(task);
+  if (best && best !== state.mode) {
+    state.mode = best;
+    const sel = document.getElementById("modeSelect");
+    if (sel) sel.value = best;
+    pushTerm("dim", `mode → ${AI_MODES[best].name} [auto]`);
+  }
+  assignAI(task.uid);
+}
+
+function chooseAffordableMode(task) {
+  const unlocked = Object.entries(AI_MODES)
+    .filter(([, m]) => state.week >= m.unlock)
+    .filter(([, m]) => (m.cost * task.workload / 3 * (state.aiDiscount ? 0.5 : 1)) <= state.cash);
+  if (unlocked.length === 0) return state.mode;
+  const urgent = state.week >= 8 || state.papers < Math.floor(state.week / 4);
+  const sorted = unlocked.sort((a, b) => {
+    if (urgent) return b[1].q - a[1].q;
+    const aGood = a[1].q >= 0.82;
+    const bGood = b[1].q >= 0.82;
+    if (aGood !== bGood) return aGood ? -1 : 1;
+    return a[1].cost - b[1].cost;
+  });
+  return sorted[0][0];
+}
+
+function autoNavigate() {
+  if (state.ended) return;
+  resumeAudio(); playClick();
+  const plan = getAutoPlan();
+  pushTerm("dim", `  [auto-nav] ${plan.text}`);
+  plan.action();
   render();
 }
 
@@ -1159,7 +1804,7 @@ function checkActTransition() {
     setTimeout(() => {
       showModal(
         "⚔️ 隔壁 Wang 组抢发",
-        `小王发来截图，脸上写满震惊：\n\n「老师！Wang 组今天挂上 arXiv 了，题目叫『Efficient Attention via Structured Sparsity』——这不就是我们做的东西吗！」\n\n你打开那篇 preprint，越读越心凉。方向高度重合，实验设置也撞了七八成。Wang 有 5 个学生，你只有 1 个。\n\n—— 怎么办？`,
+        `小王发来截图，脸上写满震惊：\n\n「老师！Wang 组今天挂上 arXiv 了，题目叫『Ab Initio He4 with SRG-Evolved Chiral Forces』——这不就是我们做的东西吗！」\n\n你打开那篇 preprint，越读越心凉。方向高度重合，interaction、cutoff 和 Nmax 扫描也撞了七八成。Wang 有 5 个学生，你只有 1 个。\n\n—— 怎么办？`,
         false,
         [
           {
@@ -1282,9 +1927,9 @@ function tenureReview() {
   const pending = state.assignedStudent.filter(s => !s.done).length;
   const aiN = state.aiDone.length;
   const sDone = state.assignedStudent.filter(s => s.done).length;
-  const fraud = state.hiddenFraud || 0;
+  const fraud = labRisk();
 
-  // Retraction check: each hidden-fraud paper has 30% chance of getting caught
+  // Retraction check: each hidden-fraud / legacy-code-debt item has 30% chance of getting caught
   let retracted = false;
   if (fraud > 0 && state.papers >= PAPERS_GOAL) {
     for (let i = 0; i < fraud; i++) {
@@ -1302,10 +1947,10 @@ function tenureReview() {
     body = `论文发表半年后，Retraction Watch 一篇报道把你们组钉上了耻辱柱。
 
 评论区：
-> "这个 Lemma 的证明明显有问题，一眼就能看出来。"
-> "导师在干什么？自己不看学生的工作吗？"
+> "这个 antisymmetrizer normalization 明显有问题，一眼就能看出来。"
+> "导师在干什么？deuteron sanity check 都不看吗？"
 
-小王这时候已经去了某某 AI Lab，年薪 500k，在 Twitter 上发：
+小王这时候已经去了某国家实验室做 postdoc，在 X 上发：
 > "学到了很多。感谢我的导师 @Prof_YourName"
 
 你的 tenure 被悄悄推迟了。`;
@@ -1320,10 +1965,10 @@ function tenureReview() {
 • 总花费：$${(START_CASH - state.cash).toFixed(0)}${fraud > 0 ? `\n• 可疑交付（你选择相信）：${fraud} 次` : ""}
 
 对照组 —— 隔壁 Wang 组：
-5 个学生，年度预算 $340,000，发了 1 篇 workshop。
+5 个学生，年度预算 $340,000，发了 1 篇 PRC Rapid。
 
-三年后有人想复现你的结果。你 git pull 了一下仓库，十分钟后跑出了完全一样的图。
-小王？小王去 industry 了，现在一年赚 300k。你们偶尔还会发微信。`;
+三年后有人想复现你的结果。你 git pull 了一下仓库，十分钟后跑出了完全一样的相移图。
+小王？小王去了国家实验室，现在天天算 coupled-cluster。你们偶尔还会发微信。`;
   } else {
     title = "📦 Tenure 未通过";
     body = `12 周结束。你只发了 ${state.papers} 篇论文（目标 ${PAPERS_GOAL}）。
@@ -1332,7 +1977,7 @@ function tenureReview() {
 • AI 流水线：${aiN} 个成品 · $${state.aiCost.toFixed(2)}
 • 学生队列：${sDone} 完成 / ${pending} 还在拖 · $${state.studentCost.toFixed(0)}${fraud > 0 ? `\n• 可疑交付（你选择相信）：${fraud} 次` : ""}
 
-${pending > aiN ? "你给小王派了太多活。她还在调环境你就没时间了。\n下局试试把任务都丢给 Claude。" : "AI 模型用得不够狠，你一直抠 Haiku。\n下局解锁 Sonnet / Opus / Mythos 之后别犹豫，贵 10 倍也比等学生强。"}`;
+${pending > aiN ? "你给小王派了太多活。她还在修 phase convention 你就没时间了。\n下局试试把容易机械化的矩阵元检查丢给 Claude。" : "AI 模型用得不够狠，你一直抠 Haiku。\n下局解锁 Sonnet / Opus / Mythos 之后别犹豫，贵 10 倍也比等学生重跑 Nmax scan 便宜。"}`;
   }
 
   if (retracted) { flashScreen("rgba(255,83,112,0.5)"); screenShake(); }
@@ -1353,10 +1998,28 @@ function clockShort() {
   return `${d} ${h}:${m}`;
 }
 
+function weeklyGoalProgressText() {
+  const g = state.weeklyGoal;
+  const stats = state.weekStats;
+  if (!g || !stats) return "—";
+  if (g.completed) return `已完成 · ${g.reward}`;
+  if (g.type === "ai") return `${stats.ai}/${g.target} AI 任务 · ${g.reward}`;
+  if (g.type === "student") return `${stats.student}/${g.target} 学生任务 · ${g.reward}`;
+  if (g.type === "slot") {
+    const gained = Math.max(0, (state.highQCount || qualityPieces()) - (stats.highQStart || 0));
+    return `${gained}/${g.target} 高质量成品 · ${g.reward}`;
+  }
+  if (g.type === "balance") return `AI ${stats.ai >= 1 ? "✓" : "0"} / 小王 ${stats.student >= 1 ? "✓" : "0"} · ${g.reward}`;
+  if (g.type === "audit") return `risk ${labRisk()}/${stats.riskStart || 0} · ${g.reward}`;
+  if (g.type === "cash") return `当前 $${Math.round(state.cash)} / 目标 $800 · 周末结算`;
+  return g.reward || "进行中";
+}
+
 function render() {
   const s = state;
   const highQ = s.highQCount || 0;
   const inProgress = Math.max(0, highQ - s.papers * 4); // 距离下一篇还差多少成品
+  const noFocus = (s.focus || 0) <= 0;
   document.getElementById("papersM").textContent = s.papers;
   // Update reputation display
   const repEl = document.getElementById("reputationM");
@@ -1382,12 +2045,50 @@ function render() {
   document.getElementById("clock").textContent = `W${s.week} · ${new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}`;
   document.getElementById("chatMeta").textContent = `在线 · Week ${s.week}`;
   document.getElementById("moodBadge").textContent = s.studentMood;
+  const routeBadge = document.getElementById("studentRouteBadge");
+  if (routeBadge) {
+    const route = s.studentRoute ? STUDENT_ROUTES[s.studentRoute] : null;
+    routeBadge.textContent = route ? `${route.badge} ${s.studentRouteProgress || 0}${s.studentRoute === "literature" ? "/6" : s.studentRoute === "reproduce" ? "/3" : ""}` : "未定路线";
+    routeBadge.className = "studentRouteBadge " + (s.studentRoute || "");
+    routeBadge.title = route ? route.short : "开局后选择新生入组路线";
+  }
   document.getElementById("rivalPapers").textContent = s.rivalPapers || 0;
+
+  // Strategy strip
+  const focusEl = document.getElementById("focusM");
+  const focusMaxEl = document.getElementById("focusMaxM");
+  if (focusEl) focusEl.textContent = s.focus || 0;
+  if (focusMaxEl) focusMaxEl.textContent = s.focusMax || FOCUS_PER_WEEK;
+  const risk = labRisk();
+  const riskEl = document.getElementById("riskM");
+  if (riskEl) riskEl.textContent = risk;
+  const riskFill = document.getElementById("riskGaugeFill");
+  if (riskFill) riskFill.style.width = `${Math.min(100, risk * 25 + (s.suspiciousPending?.length || 0) * 15)}%`;
+  const riskHint = document.getElementById("riskHint");
+  if (riskHint) {
+    riskHint.textContent = risk > 0
+      ? `${risk} 个潜在风险 · 建议审计${(s.legacyDebt || 0) > 0 ? `（旧代码债 ${s.legacyDebt}）` : ""}`
+      : ((s.auditShield || 0) > 0 ? `审计护盾 ${s.auditShield} 次` : "暂无可疑交付");
+  }
+  const goalTitle = document.getElementById("weeklyGoalTitle");
+  const goalProgress = document.getElementById("weeklyGoalProgress");
+  if (goalTitle) goalTitle.textContent = s.weeklyGoal ? s.weeklyGoal.title : "—";
+  if (goalProgress) goalProgress.textContent = weeklyGoalProgressText();
+  const autoText = document.getElementById("autoNavText");
+  if (autoText) autoText.textContent = `🧭 ${getAutoPlan().text}`;
+  const auditBtn = document.getElementById("auditBtn");
+  if (auditBtn) auditBtn.disabled = s.ended || noFocus || s.cash < AUDIT_COST;
+  const mentorBtn = document.getElementById("mentorBtn");
+  if (mentorBtn) mentorBtn.disabled = s.ended || noFocus;
+  const overworkBtn = document.getElementById("overworkBtn");
+  if (overworkBtn) overworkBtn.disabled = s.ended || s.overworked || s.cash < OVERWORK_COST;
+  const autoNavBtn = document.getElementById("autoNavBtn");
+  if (autoNavBtn) autoNavBtn.disabled = s.ended;
 
   // NSF button unlock state
   const nsfBtn = document.getElementById("nsfGrantBtn");
   if (nsfBtn) {
-    const ready = s.week >= 4 && !s.grantApplied;
+    const ready = s.week >= 4 && !s.grantApplied && !noFocus;
     nsfBtn.disabled = !ready;
     nsfBtn.style.opacity = ready ? "1" : "0.45";
     nsfBtn.style.cursor = ready ? "pointer" : "not-allowed";
@@ -1425,7 +2126,7 @@ function render() {
             <div class="subj"><span class="emojiPill">${t.emoji}</span>${esc(t.subj)}</div>
             <div class="body" style="white-space:pre-wrap">${esc(t.body)}</div>
             <div class="actions">
-              <button class="toA" onclick="acceptPeerReview(${t.uid})">✅ 接受审稿 +$200</button>
+              <button class="toA" onclick="acceptPeerReview(${t.uid})" ${noFocus ? "disabled" : ""}>✅ 接受审稿 +$200</button>
               <button class="toS" onclick="skipPeerReview(${t.uid})">⛔ 拒绝</button>
             </div>
           </div>`;
@@ -1435,9 +2136,10 @@ function render() {
           <div class="from">From: ${esc(t.from)}</div>
           <div class="subj"><span class="emojiPill">${t.emoji}</span>${esc(t.subj)}</div>
           <div class="body">${esc(t.body)}</div>
+          ${taskFitHtml(t)}
           <div class="actions">
-            <button class="toS" onclick="assignStudent(${t.uid})">→ 派给小王</button>
-            <button class="toA" onclick="assignAI(${t.uid})">→ 跑 AI ($${aiCostFor(t).toFixed(1)})</button>
+            <button class="toS" onclick="assignStudent(${t.uid})" ${noFocus ? "disabled" : ""}>→ 派给小王</button>
+            <button class="toA" onclick="assignAI(${t.uid})" ${noFocus ? "disabled" : ""}>→ 跑 AI ($${aiCostFor(t).toFixed(1)})</button>
           </div>
         </div>`;
     }).join("");
@@ -1502,8 +2204,17 @@ function renderTerm() {
   termEl.scrollTop = termEl.scrollHeight;
 }
 
-function aiCostFor(t) { return AI_MODES[state.mode].cost * t.workload / 3; }
+function aiCostFor(t) { return AI_MODES[state.mode].cost * t.workload / 3 * (state.aiDiscount ? 0.5 : 1); }
 function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+function shuffle(arr) {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+function taskKey(t) { return `${t.id || ""}::${t.subj || t.name || ""}`; }
 function esc(s) { return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 
 // Modal queue — 防止多个 setTimeout 同时弹窗互相覆盖（endWeek 在 W5/W9 同时排多 modal）
@@ -1587,7 +2298,12 @@ function handleSuspicious(uid, choice) {
   if (choice === 'trust') {
     s.suspicious = false;
     s.done = true;
-    state.hiddenFraud += 1;
+    if ((state.auditShield || 0) > 0) {
+      state.auditShield -= 1;
+      pushTerm("result", "🛡️ 审计护盾生效：这次可疑交付未增加撤稿风险");
+    } else {
+      state.hiddenFraud += 1;
+    }
     state.suspiciousPending = state.suspiciousPending.filter(x => x.uid !== uid);
     pushChat("sys", `— 你选择相信小王，任务「${s.name}」标记为完成（内心有点虚…）—`);
     checkPapers();
@@ -1615,6 +2331,10 @@ document.getElementById("nsfGrantBtn").addEventListener("click", () => {
   resumeAudio();
   openNSFGrant();
 });
+document.getElementById("auditBtn").addEventListener("click", runInternalAudit);
+document.getElementById("mentorBtn").addEventListener("click", holdGroupMeeting);
+document.getElementById("overworkBtn").addEventListener("click", overworkForFocus);
+document.getElementById("autoNavBtn").addEventListener("click", autoNavigate);
 
 // Expose to onclick handlers
 window.assignStudent = assignStudent;
@@ -1624,3 +2344,7 @@ window.scrollToSuspicious = scrollToSuspicious;
 window.acceptPeerReview = acceptPeerReview;
 window.skipPeerReview = skipPeerReview;
 window.openNSFGrant = openNSFGrant;
+window.runInternalAudit = runInternalAudit;
+window.holdGroupMeeting = holdGroupMeeting;
+window.overworkForFocus = overworkForFocus;
+window.autoNavigate = autoNavigate;

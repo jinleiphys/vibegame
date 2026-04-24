@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PI Desktop — Tenure Track</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e1014'/%3E%3Cpath d='M18 42h28v5H18zM20 17h24v5H20zM20 27h18v5H20z' fill='%2300e87b'/%3E%3Ccircle cx='46' cy='20' r='7' fill='%23ffd700'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -27,6 +28,9 @@
   <div class="introWrap" id="intro1">
     <div class="introLabel">ACT I · 这个世界</div>
     <h1 class="introTitle">2026 年，春。</h1>
+    <div class="heroArt">
+      <img src="assets/pi-desktop-key-art.png" alt="PI Desktop 主视觉：理论核物理 PI 在科研操作系统中调度 AI、学生和论文任务">
+    </div>
     <div class="introBody">
       <p>AI 已经能读完全世界所有论文，写代码比大部分博士生快，推导比人少出错。</p>
       <p>但大学还在用 <b>上个世纪的方式</b>培养研究者：招博士生、给 stipend、等五年、指望他们产出论文。</p>
@@ -42,11 +46,11 @@
     <div class="introLabel">ACT II · 你是谁</div>
     <h1 class="introTitle">Assistant Professor, 第 6 年。</h1>
     <div class="introBody">
-      <p>你是 <b>某 top-30 大学计算机系</b>的 assistant professor。</p>
+      <p>你是 <b>某 top-30 大学物理系理论核物理方向</b>的 assistant professor。</p>
       <p>去年你招了第一个博士生 <b>小王</b>。她人很好，但……今天是 Monday，她还在调 CUDA 版本。</p>
       <p>你的系主任 <b>Zhang Wei</b> 今天早上发来一封邮件，标题让你打开前深吸了一口气：</p>
       <p class="introQuote">"Welcome back — Tenure Review Timeline."</p>
-      <p>隔壁 <b>Wang 教授</b>组里养了 5 个学生，年度预算 $340,000。去年他发了 1 篇 workshop 论文。<br>但你只有：<b>$5,000</b>，<b>1 个学生</b>，<b>一个 Claude API key</b>，<b>12 周</b>。</p>
+      <p>隔壁 <b>Wang 教授</b>组里养了 5 个学生，年度预算 $340,000，超算额度像不要钱。去年他发了 1 篇 PRC Rapid。<br>但你只有：<b>$5,000</b>，<b>1 个学生</b>，<b>一个 Claude API key</b>，<b>12 周</b>。</p>
     </div>
     <div class="introFoot">
       <label>你的名字：<input id="playerName" value="Lin" maxlength="12"></label>
@@ -95,13 +99,14 @@
   <div class="menuBar">
     <span class="appleLogo">🎓</span>
     <span class="menuItem">Prof. <b id="meName">Lin</b></span>
-    <span class="menuItem">Computer Science</span>
+    <span class="menuItem">Theoretical Nuclear Physics</span>
     <span id="actIndicator" class="menuItem actIndicator act1">🎬 ACT I · 蜜月</span>
     <span class="spacer"></span>
     <span id="suspiciousCounter" class="menuItem suspiciousCounter" style="display:none" onclick="scrollToSuspicious()">🔍 待审 0</span>
     <button id="nsfGrantBtn" class="menuItem nsfGrantBtn" title="申请 NSF Grant（W4 解锁）">📄 申请 NSF</button>
     <span id="rivalCounter" class="menuItem">🐭 Wang: <b id="rivalPapers">0</b> papers</span>
     <span class="menuItem">🏆 rep: <b id="reputationM">+0</b></span>
+    <span class="menuItem riskMenuItem">⚠️ risk: <b id="riskM">0</b></span>
     <span class="menuItem">📄 <b id="papersM">0</b>/3</span>
     <span class="menuItem">💰 $<b id="cashM">5000</b></span>
     <span class="menuItem">📅 Week <b id="weekM">1</b>/12</span>
@@ -123,7 +128,7 @@
     <section class="win chat">
       <div class="winHead">
         <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-        <span class="winTitle">💬 学生群 · <span id="studentName">小王</span><span id="moodBadge">😊</span></span>
+        <span class="winTitle">💬 学生群 · <span id="studentName">小王</span><span id="moodBadge">😊</span><span id="studentRouteBadge" class="studentRouteBadge">未定路线</span></span>
         <span class="chatMeta" id="chatMeta">在线 · Week 1</span>
       </div>
       <div class="winBody chatBody" id="chatBody">
@@ -165,6 +170,29 @@
     <div class="paperAssemblyCount">
       已发表 <b id="paperPublishedN">0</b>/3
     </div>
+  </div>
+
+  <div class="strategyStrip">
+    <div class="focusPanel">
+      <div class="strategyLabel">本周行动点</div>
+      <div class="focusDigits"><b id="focusM">3</b><span>/</span><span id="focusMaxM">3</span></div>
+      <div class="strategyHint">派任务、审稿、审计、申请基金都会消耗</div>
+    </div>
+    <div class="weeklyGoalPanel">
+      <div class="strategyLabel">本周 KPI</div>
+      <div class="weeklyGoalTitle" id="weeklyGoalTitle">—</div>
+      <div class="weeklyGoalProgress" id="weeklyGoalProgress">—</div>
+      <div class="autoNavText" id="autoNavText">—</div>
+    </div>
+    <div class="riskPanel">
+      <div class="strategyLabel">实验室风险</div>
+      <div class="riskGauge"><span id="riskGaugeFill"></span></div>
+      <div class="strategyHint" id="riskHint">暂无可疑交付</div>
+    </div>
+    <button id="autoNavBtn" class="strategyBtn autoNavBtn">🧭 自动导航</button>
+    <button id="mentorBtn" class="strategyBtn mentorBtn">🧑‍🏫 组会指导</button>
+    <button id="auditBtn" class="strategyBtn auditBtn">🔍 内部审计</button>
+    <button id="overworkBtn" class="strategyBtn overworkBtn">☕ 爆肝 +1</button>
   </div>
 
   <div class="dock">
