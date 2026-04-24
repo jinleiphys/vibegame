@@ -393,6 +393,21 @@ html,body{
   animation:slideIn .3s cubic-bezier(.22,1,.36,1);
   transition:border-color .2s,box-shadow .2s;
 }
+.taskCard.hasArt{
+  display:grid;
+  grid-template-columns:92px minmax(0,1fr);
+  gap:11px;
+  align-items:start;
+}
+.taskCardArt{
+  width:92px;
+  height:72px;
+  object-fit:cover;
+  border-radius:9px;
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 8px 24px rgba(0,0,0,.24);
+}
+.taskCardMain{min-width:0}
 .taskCard:hover{border-color:rgba(255,255,255,0.15);box-shadow:0 4px 20px rgba(0,0,0,.3)}
 .taskCard .from{font-size:10px;color:var(--rival);margin-bottom:3px}
 .taskCard .subj{font-weight:700;font-size:13px;margin-bottom:5px;display:flex;align-items:center;gap:8px}
@@ -536,10 +551,70 @@ html,body{
 .paperAssemblyCount{font-size:12px;color:var(--gold);font-weight:700;white-space:nowrap}
 .paperAssemblyCount b{font-size:16px}
 
+/* ============ VISUAL ATLAS ============ */
+.visualAtlas{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  padding:10px 14px;
+  background:
+    radial-gradient(circle at 14% 10%,rgba(0,232,123,.09),transparent 28%),
+    radial-gradient(circle at 92% 18%,rgba(77,171,247,.1),transparent 32%),
+    rgba(7,10,16,.86);
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.atlasCard{
+  display:grid;
+  grid-template-columns:68px 1fr;
+  gap:10px;
+  align-items:center;
+  min-height:76px;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  background:rgba(255,255,255,.035);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  overflow:hidden;
+}
+.atlasCard img{
+  width:68px;
+  height:50px;
+  object-fit:cover;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 0 18px rgba(0,0,0,.22);
+}
+.atlasKicker{
+  color:var(--dim2);
+  font-size:9px;
+  letter-spacing:1.3px;
+  text-transform:uppercase;
+  font-weight:900;
+}
+.atlasValue{
+  margin-top:2px;
+  color:var(--fg);
+  font-size:13px;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.atlasMeta{
+  margin-top:2px;
+  color:var(--dim);
+  font-size:10px;
+  line-height:1.35;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
 /* ============ STRATEGY STRIP ============ */
 .strategyStrip{
   display:grid;
-  grid-template-columns:minmax(120px,.55fr) minmax(280px,1.5fr) minmax(160px,.8fr) auto auto auto auto;
+  grid-template-columns:minmax(120px,.55fr) minmax(280px,1.5fr) minmax(160px,.8fr) auto auto auto auto auto auto;
   align-items:center;
   gap:10px;
   padding:9px 14px;
@@ -636,6 +711,19 @@ html,body{
 }
 .strategyBtn:not(:disabled):hover{transform:translateY(-1px)}
 .strategyBtn:active{transform:scale(.96)}
+.strategySelect{
+  min-height:52px;
+  border-radius:9px;
+  padding:0 10px;
+  color:var(--fg);
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.055);
+  font:inherit;
+  font-size:11px;
+  font-weight:800;
+  outline:none;
+}
+.strategySelect:focus{border-color:rgba(0,232,123,.5);box-shadow:0 0 14px rgba(0,232,123,.18)}
 .autoNavBtn{
   color:#06110b;
   border:1px solid rgba(0,232,123,0.65);
@@ -643,6 +731,19 @@ html,body{
   box-shadow:0 0 16px rgba(0,232,123,0.2);
 }
 .autoNavBtn:not(:disabled):hover{box-shadow:0 0 22px rgba(0,232,123,0.38)}
+.autoRunBtn{
+  color:#07111a;
+  border:1px solid rgba(77,171,247,0.65);
+  background:linear-gradient(135deg,#70c7ff,var(--link));
+  box-shadow:0 0 16px rgba(77,171,247,0.2);
+}
+.autoRunBtn:not(:disabled):hover{box-shadow:0 0 22px rgba(77,171,247,0.38)}
+.autoRunBtn.running{
+  color:#130900;
+  border-color:rgba(255,165,0,0.75);
+  background:linear-gradient(135deg,#ffd36e,#ff9f1c);
+  box-shadow:0 0 20px rgba(255,165,0,0.32);
+}
 .mentorBtn{
   color:#06101f;
   border:1px solid rgba(255,215,0,0.6);
@@ -916,6 +1017,7 @@ html,body{
 @media(max-width:1100px){
   .windows{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
   .win.term{grid-column:1/3}
+  .visualAtlas{grid-template-columns:1fr 1fr}
   .strategyStrip{grid-template-columns:1fr 1fr;align-items:stretch}
   .riskPanel{grid-column:1/2}
   .strategyBtn{min-height:44px}
@@ -926,6 +1028,9 @@ html,body{
   .menuBar{gap:10px;overflow-x:auto}
   .paperAssembly{align-items:flex-start;flex-direction:column;gap:8px}
   .paperSlots{width:100%;max-width:none}
+  .visualAtlas{grid-template-columns:1fr}
+  .taskCard.hasArt{grid-template-columns:76px minmax(0,1fr)}
+  .taskCardArt{width:76px;height:62px}
   .strategyStrip{grid-template-columns:1fr}
-  .focusPanel,.weeklyGoalPanel,.riskPanel,.strategyBtn{min-height:auto}
+  .focusPanel,.weeklyGoalPanel,.riskPanel,.strategyBtn,.strategySelect{min-height:auto}
 }

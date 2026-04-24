@@ -8,6 +8,7 @@ const PAPERS_GOAL = 3;
 const FOCUS_PER_WEEK = 3;
 const AUDIT_COST = 300;
 const OVERWORK_COST = 350;
+const AUTO_RUN_STEP_LIMIT = 18;
 
 // ============ AUDIO ENGINE (Web Audio API, no external files) ============
 let audioCtx = null;
@@ -177,6 +178,26 @@ const TASK_POOL = [
     from:"self@todo",         subj:"设计一个 benchmark 说服审稿人",
     body:"我们需要一个表证明张量力、三体力和 Coulomb correction 分别有多重要。请设计 deuteron、triton、He4 的 benchmark 表。", workload:3 },
 ];
+
+const TASK_VISUALS = {
+  lit: "assets/visual-task-lit.svg",
+  code: "assets/visual-task-code.svg",
+  data: "assets/visual-task-data.svg",
+  proof: "assets/visual-task-proof.svg",
+  write: "assets/visual-task-write.svg",
+  exp: "assets/visual-task-exp.svg",
+  peer_review_offer: "assets/visual-task-review.svg",
+};
+
+const ROUTE_VISUALS = {
+  literature: "assets/visual-route-literature.svg",
+  legacy: "assets/visual-route-legacy.svg",
+  reproduce: "assets/visual-route-reproduce.svg",
+};
+
+function taskVisualSrc(t) {
+  return TASK_VISUALS[t.id] || "assets/visual-task-data.svg";
+}
 
 const STUDENT_ROUTES = {
   literature: {
@@ -433,10 +454,10 @@ const EVENT_POOL = [
     emoji: "🧟", title: "Reviewer 2 回归",
     body: "新一轮 PRC review 回来了。你一眼看到 Reviewer 2 的措辞——和三年前那个揪着你 SRG induced 4N force 不放的人，一字一顿，如出一辙。\n\n「The convergence pattern is not convincing. The uncertainty estimate is optimistic.」\n\n他又回来了。",
     options: [
-      { label: "找 AC 申诉（+1 reputation，-3 Judgment）",
-        fn: () => { state.reputation = (state.reputation||0) + 1;
-          pushChat("sys","— 你写了一封措辞精准的申诉信给 AC，据理力争 —");
-          pushTerm("result","⚖️ 申诉成功 +1 reputation（损耗了大量精力 -3 Judgment）"); render(); } },
+      { label: "找 AE（处理编辑）申诉（+1 reputation，-3 行动点）",
+        fn: () => { state.reputation = (state.reputation||0) + 1; state.focus = Math.max(0, (state.focus || 0) - 3);
+          pushChat("sys","— 你写了一封措辞精准的申诉信给 AE（处理编辑），据理力争 —");
+          pushTerm("result","⚖️ 申诉成功 +1 reputation（损耗了大量精力 -3 行动点）"); render(); } },
       { label: "忍了，下次换个 venue 投",
         fn: () => { state.reputation = (state.reputation||0) - 1;
           pushChat("sys","— 你吞下这口气，默默记下这个 reviewer 的文风 —");
@@ -481,10 +502,10 @@ const EVENT_POOL = [
     emoji: "🏖️", title: "系主任度假",
     body: "Zhang Wei 的自动回复邮件：\n\n「I am currently in Hawaii for a well-deserved vacation. Will be back in two weeks. All administrative matters delayed accordingly.」\n\n行政停摆，无人监督，难得的窗口期。",
     options: [
-      { label: "偷偷休一周（+3 Judgment，清空内心包袱）",
-        fn: () => { state.reputation = (state.reputation||0);
-          pushChat("sys","— 你放松了两天，思路反而更清晰了 +3 Judgment（满血复活）—");
-          pushTerm("result","🏖️ 摸鱼有道 +3 Judgment（系主任不在，猫就跳上桌）"); render(); } },
+      { label: "偷偷休一周（+3 行动点，清空内心包袱）",
+        fn: () => { state.focus = (state.focus || 0) + 3; state.focusMax = Math.max(state.focusMax || 0, state.focus);
+          pushChat("sys","— 你放松了两天，思路反而更清晰了 +3 行动点（满血复活）—");
+          pushTerm("result","🏖️ 摸鱼有道 +3 行动点（系主任不在，猫就跳上桌）"); render(); } },
       { label: "加班赶进度（+2 slots，以我手速）",
         fn: () => { addBonusSlots(2, "系主任度假窗口");
           pushChat("sys","— 利用这个窗口期，你多攒了 2 个高质量成品 —");
@@ -512,10 +533,10 @@ const EVENT_POOL = [
     emoji: "🎤", title: "受邀演讲",
     body: "某国家实验室的 Theory Group Leader 发来邮件：\n\n「看了你们最近的 preprint，我们组会上讨论了很久。想邀请你来做 invited talk，$2,000 honorarium，差旅全包。」\n\n你打开日历，发现下周还有两个 deadline。",
     options: [
-      { label: "接受（+$2,000，-2 Judgment，本周进度暂停）",
-        fn: () => { state.cash += 2000; bounceEl("cashM");
+      { label: "接受（+$2,000，-2 行动点，本周进度暂停）",
+        fn: () => { state.cash += 2000; state.focus = Math.max(0, (state.focus || 0) - 2); bounceEl("cashM");
           pushChat("sys","— 你做了一场精彩的 invited talk，honorarium 进账！—");
-          pushTerm("result","🎤 Talk 完成 +$2,000 （-2 Judgment，但值了）"); render(); } },
+          pushTerm("result","🎤 Talk 完成 +$2,000 （-2 行动点，但值了）"); render(); } },
       { label: "婉拒（感谢好意，专注手头工作）",
         fn: () => { pushChat("sys","— 你礼貌拒绝，对方表示理解，留下了联系方式 —"); } },
     ],
@@ -626,6 +647,10 @@ function startGame(name) {
     studentRouteNotice: false,
     legacyDebt: 0,
     studentGuidance: 0,
+    autoMode: "balanced",
+    autoRunActive: false,
+    autoRunSteps: 0,
+    aiBusy: false,
     excuseCount: 0,
     ended: false,
     seq: 0,
@@ -770,6 +795,13 @@ function routeConfig() {
 
 function labRisk() {
   return (state.hiddenFraud || 0) + (state.legacyDebt || 0);
+}
+
+function studentRouteProgressText() {
+  const p = state.studentRouteProgress || 0;
+  if (state.studentRoute === "literature") return `${Math.min(6, p)}/6`;
+  if (state.studentRoute === "reproduce") return `${Math.min(3, p)}/3`;
+  return String(p);
 }
 
 function checkStudentRouteMilestone() {
@@ -1025,6 +1057,7 @@ function assignAI(uid) {
   state.aiCost += cost;
   state.weekStats.ai += 1;
   bounceEl("cashM");
+  state.aiBusy = true;
   // 方差 ±8% → zero-shot 范围 0.62~0.78，有真实波动感（有时合格有时翻车）
   const q = Math.max(0, Math.min(1, mode.q + aiTaskQualityModifier(t) + (Math.random()-0.5)*0.16));
 
@@ -1048,6 +1081,7 @@ function assignAI(uid) {
         state.aiDone.unshift({ ...t, mode:mode.name, cost, quality:q });
         playBlip();
         if (!highQ) showAdvisorQuip(`AI 这个 ${qualityPct}% 质量组不成论文——换个更贵的 mode 试试？`);
+        state.aiBusy = false;
         checkPapers();
         checkWeeklyGoalCompletion();
         render();
@@ -1231,6 +1265,12 @@ function studentRouteModifiers() {
 
 function advanceStudentOnboarding() {
   const route = routeConfig();
+  if (route === "literature" && (state.studentRouteProgress || 0) >= 6) return;
+  if (route === "reproduce" && (state.studentRouteProgress || 0) >= 3) return;
+  if (route === "legacy") {
+    if (Math.random() < 0.35) pushChat("them", pick(ONBOARDING_LINES.legacyFast));
+    return;
+  }
   state.studentRouteProgress = (state.studentRouteProgress || 0) + 1;
   const p = state.studentRouteProgress;
   if (route === "literature" && p <= 6) {
@@ -1241,8 +1281,6 @@ function advanceStudentOnboarding() {
     pushChat("them", pick(ONBOARDING_LINES.reproduceBench));
     pushTerm("dim", `  [student onboarding] benchmark 复现 ${p}/3：先 sanity check，再上主线`);
     checkStudentRouteMilestone();
-  } else if (route === "legacy" && Math.random() < 0.35) {
-    pushChat("them", pick(ONBOARDING_LINES.legacyFast));
   }
 }
 
@@ -1488,7 +1526,7 @@ function rollPeerReviewOffer() {
     emoji: "📝", name: "审稿接单",
     from: "editor@prc.aps.org",
     subj: "Invitation: Referee · Physical Review C · +$200",
-    body: "Dear Prof. " + state.name + ",\n\nWe would like to invite you to review a manuscript on chiral interactions and few-body benchmarks. Honorarium: $200. Estimated effort: 1 unit of Judgment.\n\n-- PRC Editor",
+    body: "Dear Prof. " + state.name + ",\n\nWe would like to invite you to review a manuscript on chiral interactions and few-body benchmarks. Honorarium: $200. Estimated effort: 1 行动点.\n\n-- PRC Editor",
     workload: 1,
     assigned: null,
     isPeerReview: true,
@@ -1629,7 +1667,88 @@ function holdGroupMeeting() {
   render();
 }
 
-function getAutoPlan() {
+function currentAutoMode() {
+  return state.autoMode || "balanced";
+}
+
+function autoModeName(mode = currentAutoMode()) {
+  return ({
+    balanced: "均衡策略",
+    deadline: "冲论文",
+    train: "带学生",
+    safe: "低风险",
+  })[mode] || "均衡策略";
+}
+
+function costForMode(t, modeKey) {
+  const model = AI_MODES[modeKey];
+  if (!model) return Infinity;
+  return +(model.cost * t.workload / 3 * (state.aiDiscount ? 0.5 : 1)).toFixed(2);
+}
+
+function affordableModesForTask(t) {
+  return Object.entries(AI_MODES)
+    .filter(([, m]) => state.week >= m.unlock)
+    .filter(([key]) => costForMode(t, key) <= state.cash);
+}
+
+function scoreTaskForAI(t, mode = currentAutoMode()) {
+  const best = chooseAffordableMode(t, mode);
+  if (!best) return Number.NEGATIVE_INFINITY;
+  const model = AI_MODES[best] || AI_MODES[state.mode];
+  const cost = costForMode(t, best);
+  let score = model.q * 100 + aiTaskQualityModifier(t) * 85 - cost * 1.8 - t.workload * 2;
+  if (mode === "deadline") score += 18 + model.q * 18;
+  if (mode === "train") score -= 10;
+  if (mode === "safe") score += aiTaskQualityModifier(t) >= 0 ? 6 : -14;
+  if (state.weeklyGoal && !state.weeklyGoal.completed && ["ai", "balance"].includes(state.weeklyGoal.type)) score += 24;
+  if (state.week >= 8) score += 14;
+  return score;
+}
+
+function scoreTaskForStudent(t, mode = currentAutoMode()) {
+  const route = routeConfig();
+  const backlog = state.assignedStudent.filter(s => !s.done).length;
+  let score = 48 + studentTaskQualityModifier(t) * 110 - t.workload * 5;
+  if (mode === "train") score += 24;
+  if (mode === "deadline") score -= 16;
+  if (mode === "safe") score += route === "legacy" ? -18 : 10;
+  if (route === "literature" && (state.studentRouteProgress || 0) < 6) score -= 30;
+  if (route === "reproduce" && (state.studentRouteProgress || 0) >= 3) score += 12;
+  if (state.weeklyGoal && !state.weeklyGoal.completed && ["student", "balance"].includes(state.weeklyGoal.type)) score += 26;
+  if (backlog >= 2 && mode !== "train") score -= 55;
+  if (backlog >= 3) score -= 80;
+  return score;
+}
+
+function bestTaskPlan(tasks, mode = currentAutoMode()) {
+  const options = [];
+  for (const t of tasks) {
+    const aiMode = chooseAffordableMode(t, mode);
+    const aiScore = scoreTaskForAI(t, mode);
+    if (aiMode && Number.isFinite(aiScore)) {
+      options.push({
+        kind: "ai",
+        task: t,
+        score: aiScore,
+        text: `用 ${AI_MODES[aiMode].name} 跑「${t.name}」`,
+        action: () => autoRunAI(t),
+        reason: `AI适配 ${fitLabel(aiTaskQualityModifier(t))}，成本 $${costForMode(t, aiMode).toFixed(1)}`,
+      });
+    }
+    options.push({
+      kind: "student",
+      task: t,
+      score: scoreTaskForStudent(t, mode),
+      text: `派小王处理「${t.name}」`,
+      action: () => assignStudent(t.uid),
+      reason: `学生适配 ${state.studentRoute ? fitLabel(studentTaskQualityModifier(t)) : "待定"}，路线 ${STUDENT_ROUTES[routeConfig()]?.label}`,
+    });
+  }
+  return options.sort((a, b) => b.score - a.score)[0] || null;
+}
+
+function getAutoPlan(mode = currentAutoMode()) {
   const pending = state.inbox.filter(t => !t.assigned);
   const normalPending = pending.filter(t => !t.isPeerReview);
   const peer = pending.find(t => t.isPeerReview);
@@ -1637,74 +1756,116 @@ function getAutoPlan() {
   const risk = labRisk();
   const activeStudent = state.assignedStudent.filter(s => !s.done);
 
+  if (!state.studentRoute) {
+    return {
+      kind: "modal",
+      text: "先选择新生入组路线，否则学生任务决策没有依据。",
+      action: showStudentOnboardingModal,
+      reason: "学生路线会改变速度、质量和风险。",
+      stopAfter: true,
+    };
+  }
   if (state.suspiciousPending && state.suspiciousPending.length > 0) {
     return {
+      kind: "modal",
       text: "先处理可疑交付，避免最后撤稿。",
       action: () => showSuspiciousModal(state.suspiciousPending[0]),
+      reason: "这是伦理/撤稿风险选择，需要玩家确认。",
+      stopAfter: true,
     };
   }
   if (risk > 0 && focusLeft > 0 && state.cash >= AUDIT_COST) {
     return {
+      kind: "audit",
       text: "当前有撤稿风险，建议先内部审计。",
       action: runInternalAudit,
+      reason: mode === "safe" ? "低风险策略优先清风险。" : "风险会影响最终 tenure 结局。",
     };
   }
   if (state.cash < 900 && state.week >= 4 && !state.grantApplied && focusLeft > 0) {
     return {
+      kind: "modal",
       text: "现金紧张，优先打开 NSF 申请。",
       action: openNSFGrant,
+      reason: "NSF 是现金流断裂时的主要恢复手段。",
+      stopAfter: true,
     };
   }
   if (focusLeft <= 0) {
-    if (!state.overworked && state.cash >= OVERWORK_COST && normalPending.length > 0) {
+    const canOverwork = !state.overworked && state.cash >= OVERWORK_COST && normalPending.length > 0;
+    const shouldOverwork = mode === "deadline" || state.week >= 10 || (state.week >= 8 && state.papers < PAPERS_GOAL - 1);
+    if (canOverwork && shouldOverwork) {
       return {
+        kind: "overwork",
         text: "行动点用完但还有任务，可以爆肝换 1 点。",
         action: overworkForFocus,
+        reason: mode === "deadline" ? "冲论文策略允许适度爆肝。" : "还有未处理任务，但会引入疲劳风险。",
       };
     }
     return {
+      kind: "week",
       text: "本周行动点用完，进入下一周结算。",
       action: endWeek,
+      reason: "继续停留没有收益，结算学生进度和事件。",
     };
   }
-  if (activeStudent.length >= 2 && focusLeft > 0) {
+  const route = routeConfig();
+  const routeTrainingOpen = (route === "literature" && state.studentRouteProgress < 6) ||
+    (route === "reproduce" && state.studentRouteProgress < 3);
+  const mentorLimit = mode === "train" ? 2 : 1;
+  if ((mode === "train" || activeStudent.length >= 2) && focusLeft > 0 && (state.weekStats?.mentor || 0) < mentorLimit && (activeStudent.length > 0 || routeTrainingOpen)) {
     return {
+      kind: "mentor",
       text: "学生任务堆积，先开组会把旧代码和 benchmark 讲清楚。",
       action: holdGroupMeeting,
+      reason: activeStudent.length > 0 ? `当前 ${activeStudent.length} 个学生任务在排队。` : "组会能推进新生训练并提高下一次交付质量。",
     };
   }
   if (state.weeklyGoal && !state.weeklyGoal.completed) {
     const g = state.weeklyGoal;
     if ((g.type === "audit") && state.cash >= AUDIT_COST) {
-      return { text: "本周 KPI 要求审计，先做内部审计。", action: runInternalAudit };
+      return { kind: "audit", text: "本周 KPI 要求审计，先做内部审计。", action: runInternalAudit, reason: "完成 KPI 同时降低最终爆雷概率。" };
     }
-    if ((g.type === "student" || g.type === "balance") && normalPending.length > 0 && (state.weekStats?.student || 0) < (g.type === "student" ? g.target : 1)) {
-      const task = chooseStudentTask(normalPending);
-      return { text: `本周 KPI 需要派给小王：${task.name}。`, action: () => assignStudent(task.uid) };
+    if ((g.type === "student" || g.type === "balance") && normalPending.length > 0 && (state.weekStats?.student || 0) < (g.type === "student" ? g.target : 1) && mode !== "deadline") {
+      const studentBest = [...normalPending].sort((a, b) => scoreTaskForStudent(b, mode) - scoreTaskForStudent(a, mode))[0];
+      return { kind: "student", text: `本周 KPI 需要派给小王：${studentBest.name}。`, action: () => assignStudent(studentBest.uid), reason: `学生适配 ${fitLabel(studentTaskQualityModifier(studentBest))}，能推进 KPI。` };
     }
     if ((g.type === "ai" || g.type === "balance") && normalPending.length > 0 && (state.weekStats?.ai || 0) < (g.type === "ai" ? g.target : 1)) {
-      const task = chooseAITask(normalPending);
-      return { text: `本周 KPI 需要跑 AI：${task.name}。`, action: () => autoRunAI(task) };
+      const aiBest = [...normalPending].sort((a, b) => scoreTaskForAI(b, mode) - scoreTaskForAI(a, mode))[0];
+      if (chooseAffordableMode(aiBest, mode)) {
+        return { kind: "ai", text: `本周 KPI 需要跑 AI：${aiBest.name}。`, action: () => autoRunAI(aiBest), reason: `AI适配 ${fitLabel(aiTaskQualityModifier(aiBest))}，能推进 KPI。` };
+      }
     }
   }
   if (peer && state.cash < 1500) {
     return {
+      kind: "review",
       text: "缺钱时审稿的 $200 有用，接一单。",
       action: () => acceptPeerReview(peer.uid),
+      reason: "短期现金补充，代价是 1 个行动点。",
     };
   }
   if (normalPending.length > 0) {
-    const studentBacklog = state.assignedStudent.filter(s => !s.done).length;
-    if (studentBacklog < 2 && state.week <= 5 && state.cash > STUDENT_STIPEND * 2) {
-      const task = chooseStudentTask(normalPending);
-      return { text: `早期让小王占一个 pipeline：${task.name}。`, action: () => assignStudent(task.uid) };
+    const best = bestTaskPlan(normalPending, mode);
+    if (!best) {
+      return {
+        kind: "blocked",
+        text: "当前现金不足以跑 AI，学生 pipeline 也不应继续堆。",
+        action: () => showAdvisorQuip("先结算一周、接审稿或申请 NSF，别硬塞任务。"),
+        reason: "自动导航找不到正收益动作。",
+        stopAfter: true,
+      };
     }
-    const task = chooseAITask(normalPending);
-    return { text: `最稳下一步：用当前最强可负担模型跑 ${task.name}。`, action: () => autoRunAI(task) };
+    return {
+      ...best,
+      text: `${best.text}。`,
+    };
   }
   return {
+    kind: "week",
     text: "Inbox 已清空，推进到下一周。",
     action: endWeek,
+    reason: "没有可分配任务，进入结算获得新事件和新任务。",
   };
 }
 
@@ -1718,6 +1879,13 @@ function chooseAITask(tasks) {
 
 function autoRunAI(task) {
   const best = chooseAffordableMode(task);
+  if (!best) {
+    pushTerm("err", `✗ no affordable AI mode for ${task.name}`);
+    showAdvisorQuip("现金不够跑 AI：先接审稿、申请 NSF，或进入下一周等学生交付。");
+    screenShake();
+    render();
+    return;
+  }
   if (best && best !== state.mode) {
     state.mode = best;
     const sel = document.getElementById("modeSelect");
@@ -1727,29 +1895,104 @@ function autoRunAI(task) {
   assignAI(task.uid);
 }
 
-function chooseAffordableMode(task) {
-  const unlocked = Object.entries(AI_MODES)
-    .filter(([, m]) => state.week >= m.unlock)
-    .filter(([, m]) => (m.cost * task.workload / 3 * (state.aiDiscount ? 0.5 : 1)) <= state.cash);
-  if (unlocked.length === 0) return state.mode;
-  const urgent = state.week >= 8 || state.papers < Math.floor(state.week / 4);
+function chooseAffordableMode(task, mode = currentAutoMode()) {
+  const unlocked = affordableModesForTask(task);
+  if (unlocked.length === 0) return null;
+  const urgent = mode === "deadline" || state.week >= 8 || state.papers < Math.floor(state.week / 4);
   const sorted = unlocked.sort((a, b) => {
+    if (mode === "safe") {
+      const aq = a[1].q >= 0.82;
+      const bq = b[1].q >= 0.82;
+      if (aq !== bq) return aq ? -1 : 1;
+      return costForMode(task, a[0]) - costForMode(task, b[0]);
+    }
     if (urgent) return b[1].q - a[1].q;
     const aGood = a[1].q >= 0.82;
     const bGood = b[1].q >= 0.82;
     if (aGood !== bGood) return aGood ? -1 : 1;
-    return a[1].cost - b[1].cost;
+    return costForMode(task, a[0]) - costForMode(task, b[0]);
   });
   return sorted[0][0];
+}
+
+function executeAutoPlan(plan, source = "auto-nav") {
+  if (!plan || typeof plan.action !== "function") return null;
+  const modeName = autoModeName();
+  const reason = plan.reason ? ` · ${plan.reason}` : "";
+  pushTerm("dim", `  [${source}] ${modeName} → ${plan.text}${reason}`);
+  plan.action();
+  return plan;
 }
 
 function autoNavigate() {
   if (state.ended) return;
   resumeAudio(); playClick();
   const plan = getAutoPlan();
-  pushTerm("dim", `  [auto-nav] ${plan.text}`);
-  plan.action();
+  executeAutoPlan(plan, "auto-nav");
   render();
+}
+
+function autoRunDelay(kind) {
+  if (kind === "ai") return 650;
+  if (kind === "week") return 1450;
+  if (kind === "mentor" || kind === "audit" || kind === "overwork") return 650;
+  return 500;
+}
+
+function autoRunBlocker() {
+  if (!state || state.ended) return "游戏已结束";
+  if (_modalOpen || _modalQueue.length > 0) return "等待玩家处理弹窗";
+  return "";
+}
+
+function stopAutoRun(reason) {
+  if (!state) return;
+  const wasRunning = !!state.autoRunActive;
+  state.autoRunActive = false;
+  if (wasRunning && reason) pushTerm("dim", `  [auto-run] paused: ${reason}`);
+  render();
+}
+
+function runAutoStep() {
+  if (!state?.autoRunActive) return;
+  if (state.aiBusy) {
+    setTimeout(runAutoStep, 450);
+    return;
+  }
+  const blocker = autoRunBlocker();
+  if (blocker) {
+    stopAutoRun(blocker);
+    return;
+  }
+  if ((state.autoRunSteps || 0) >= AUTO_RUN_STEP_LIMIT) {
+    stopAutoRun(`已连续执行 ${AUTO_RUN_STEP_LIMIT} 步，防止无人值守跑飞`);
+    return;
+  }
+
+  const plan = getAutoPlan();
+  state.autoRunSteps = (state.autoRunSteps || 0) + 1;
+  executeAutoPlan(plan, "auto-run");
+  render();
+
+  if (plan.stopAfter || plan.kind === "modal" || plan.kind === "blocked") {
+    stopAutoRun(plan.reason || "需要人工确认");
+    return;
+  }
+  setTimeout(runAutoStep, autoRunDelay(plan.kind));
+}
+
+function toggleAutoRun() {
+  if (state.ended) return;
+  resumeAudio(); playClick();
+  if (state.autoRunActive) {
+    stopAutoRun("玩家手动停止");
+    return;
+  }
+  state.autoRunActive = true;
+  state.autoRunSteps = 0;
+  pushTerm("dim", `  [auto-run] start · ${autoModeName()} · max ${AUTO_RUN_STEP_LIMIT} steps`);
+  render();
+  setTimeout(runAutoStep, 120);
 }
 
 // ============ SYSTEM C · RANDOM EVENT ROLL ============
@@ -2015,6 +2258,48 @@ function weeklyGoalProgressText() {
   return g.reward || "进行中";
 }
 
+function visualAtlasHtml(autoPlan, risk, inProgress) {
+  const route = state.studentRoute ? STUDENT_ROUTES[state.studentRoute] : null;
+  const routeKey = state.studentRoute || "reproduce";
+  const routeMeta = route ? route.short : "先选新生路线：读文献、跑旧代码，还是复现 benchmark。";
+  const items = [
+    {
+      img: ROUTE_VISUALS[routeKey],
+      kicker: "STUDENT ROUTE",
+      value: route ? route.label : "路线未定",
+      meta: routeMeta,
+    },
+    {
+      img: "assets/visual-auto.svg",
+      kicker: "AUTO NAV",
+      value: autoModeName(),
+      meta: `${autoPlan.kind || "plan"}：${autoPlan.text}`,
+    },
+    {
+      img: "assets/visual-paper.svg",
+      kicker: "PAPER PIPELINE",
+      value: `${inProgress}/4 slots · ${state.papers}/${PAPERS_GOAL} papers`,
+      meta: "4 个高质量成品槽合成 1 篇 PRC 级别论文。",
+    },
+    {
+      img: "assets/visual-risk.svg",
+      kicker: "REPRODUCIBILITY",
+      value: risk > 0 ? `risk ${risk}` : "clean",
+      meta: risk > 0 ? "有旧代码黑箱或可疑交付，建议内部审计。" : "当前没有可见撤稿风险。",
+    },
+  ];
+  return items.map(item => `
+    <div class="atlasCard">
+      <img src="${item.img}" alt="" loading="lazy">
+      <div>
+        <div class="atlasKicker">${esc(item.kicker)}</div>
+        <div class="atlasValue">${esc(item.value)}</div>
+        <div class="atlasMeta">${esc(item.meta)}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
 function render() {
   const s = state;
   const highQ = s.highQCount || 0;
@@ -2048,18 +2333,21 @@ function render() {
   const routeBadge = document.getElementById("studentRouteBadge");
   if (routeBadge) {
     const route = s.studentRoute ? STUDENT_ROUTES[s.studentRoute] : null;
-    routeBadge.textContent = route ? `${route.badge} ${s.studentRouteProgress || 0}${s.studentRoute === "literature" ? "/6" : s.studentRoute === "reproduce" ? "/3" : ""}` : "未定路线";
+    routeBadge.textContent = route ? `${route.badge} ${studentRouteProgressText()}` : "未定路线";
     routeBadge.className = "studentRouteBadge " + (s.studentRoute || "");
     routeBadge.title = route ? route.short : "开局后选择新生入组路线";
   }
   document.getElementById("rivalPapers").textContent = s.rivalPapers || 0;
+  const risk = labRisk();
+  const autoPlan = getAutoPlan();
+  const atlasEl = document.getElementById("visualAtlas");
+  if (atlasEl) atlasEl.innerHTML = visualAtlasHtml(autoPlan, risk, inProgress);
 
   // Strategy strip
   const focusEl = document.getElementById("focusM");
   const focusMaxEl = document.getElementById("focusMaxM");
   if (focusEl) focusEl.textContent = s.focus || 0;
   if (focusMaxEl) focusMaxEl.textContent = s.focusMax || FOCUS_PER_WEEK;
-  const risk = labRisk();
   const riskEl = document.getElementById("riskM");
   if (riskEl) riskEl.textContent = risk;
   const riskFill = document.getElementById("riskGaugeFill");
@@ -2075,7 +2363,9 @@ function render() {
   if (goalTitle) goalTitle.textContent = s.weeklyGoal ? s.weeklyGoal.title : "—";
   if (goalProgress) goalProgress.textContent = weeklyGoalProgressText();
   const autoText = document.getElementById("autoNavText");
-  if (autoText) autoText.textContent = `🧭 ${getAutoPlan().text}`;
+  if (autoText) autoText.textContent = `${s.autoRunActive ? "⏩" : "🧭"} ${autoModeName()}：${autoPlan.text}${autoPlan.reason ? ` · ${autoPlan.reason}` : ""}`;
+  const autoModeSelect = document.getElementById("autoModeSelect");
+  if (autoModeSelect) autoModeSelect.value = currentAutoMode();
   const auditBtn = document.getElementById("auditBtn");
   if (auditBtn) auditBtn.disabled = s.ended || noFocus || s.cash < AUDIT_COST;
   const mentorBtn = document.getElementById("mentorBtn");
@@ -2083,7 +2373,13 @@ function render() {
   const overworkBtn = document.getElementById("overworkBtn");
   if (overworkBtn) overworkBtn.disabled = s.ended || s.overworked || s.cash < OVERWORK_COST;
   const autoNavBtn = document.getElementById("autoNavBtn");
-  if (autoNavBtn) autoNavBtn.disabled = s.ended;
+  if (autoNavBtn) autoNavBtn.disabled = s.ended || s.autoRunActive;
+  const autoRunBtn = document.getElementById("autoRunBtn");
+  if (autoRunBtn) {
+    autoRunBtn.disabled = s.ended;
+    autoRunBtn.textContent = s.autoRunActive ? "⏸ 停止自动" : "⏩ 自动推进";
+    autoRunBtn.classList.toggle("running", !!s.autoRunActive);
+  }
 
   // NSF button unlock state
   const nsfBtn = document.getElementById("nsfGrantBtn");
@@ -2121,25 +2417,31 @@ function render() {
     inboxEl.innerHTML = suspiciousCards + pending.map(t => {
       if (t.isPeerReview) {
         return `
-          <div class="taskCard" style="border-color:rgba(77,171,247,0.4)">
-            <div class="from" style="color:var(--link)">From: ${esc(t.from)}</div>
-            <div class="subj"><span class="emojiPill">${t.emoji}</span>${esc(t.subj)}</div>
-            <div class="body" style="white-space:pre-wrap">${esc(t.body)}</div>
-            <div class="actions">
-              <button class="toA" onclick="acceptPeerReview(${t.uid})" ${noFocus ? "disabled" : ""}>✅ 接受审稿 +$200</button>
-              <button class="toS" onclick="skipPeerReview(${t.uid})">⛔ 拒绝</button>
+          <div class="taskCard hasArt" style="border-color:rgba(77,171,247,0.4)">
+            <img class="taskCardArt" src="${taskVisualSrc(t)}" alt="" loading="lazy">
+            <div class="taskCardMain">
+              <div class="from" style="color:var(--link)">From: ${esc(t.from)}</div>
+              <div class="subj"><span class="emojiPill">${t.emoji}</span>${esc(t.subj)}</div>
+              <div class="body" style="white-space:pre-wrap">${esc(t.body)}</div>
+              <div class="actions">
+                <button class="toA" onclick="acceptPeerReview(${t.uid})" ${noFocus ? "disabled" : ""}>✅ 接受审稿 +$200</button>
+                <button class="toS" onclick="skipPeerReview(${t.uid})">⛔ 拒绝</button>
+              </div>
             </div>
           </div>`;
       }
       return `
-        <div class="taskCard">
-          <div class="from">From: ${esc(t.from)}</div>
-          <div class="subj"><span class="emojiPill">${t.emoji}</span>${esc(t.subj)}</div>
-          <div class="body">${esc(t.body)}</div>
-          ${taskFitHtml(t)}
-          <div class="actions">
-            <button class="toS" onclick="assignStudent(${t.uid})" ${noFocus ? "disabled" : ""}>→ 派给小王</button>
-            <button class="toA" onclick="assignAI(${t.uid})" ${noFocus ? "disabled" : ""}>→ 跑 AI ($${aiCostFor(t).toFixed(1)})</button>
+        <div class="taskCard hasArt">
+          <img class="taskCardArt" src="${taskVisualSrc(t)}" alt="" loading="lazy">
+          <div class="taskCardMain">
+            <div class="from">From: ${esc(t.from)}</div>
+            <div class="subj"><span class="emojiPill">${t.emoji}</span>${esc(t.subj)}</div>
+            <div class="body">${esc(t.body)}</div>
+            ${taskFitHtml(t)}
+            <div class="actions">
+              <button class="toS" onclick="assignStudent(${t.uid})" ${noFocus ? "disabled" : ""}>→ 派给小王</button>
+              <button class="toA" onclick="assignAI(${t.uid})" ${noFocus ? "disabled" : ""}>→ 跑 AI ($${aiCostFor(t).toFixed(1)})</button>
+            </div>
           </div>
         </div>`;
     }).join("");
@@ -2221,6 +2523,7 @@ function esc(s) { return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",
 const _modalQueue = [];
 let _modalOpen = false;
 function showModal(title, body, pass, options) {
+  if (state?.autoRunActive) stopAutoRun("等待玩家处理弹窗");
   _modalQueue.push({ title, body, pass, options });
   _processModalQueue();
 }
@@ -2335,6 +2638,14 @@ document.getElementById("auditBtn").addEventListener("click", runInternalAudit);
 document.getElementById("mentorBtn").addEventListener("click", holdGroupMeeting);
 document.getElementById("overworkBtn").addEventListener("click", overworkForFocus);
 document.getElementById("autoNavBtn").addEventListener("click", autoNavigate);
+document.getElementById("autoRunBtn").addEventListener("click", toggleAutoRun);
+document.getElementById("autoModeSelect").addEventListener("change", e => {
+  if (!state) return;
+  resumeAudio(); playClick();
+  state.autoMode = e.target.value;
+  pushTerm("dim", `  [auto-mode] ${autoModeName()}`);
+  render();
+});
 
 // Expose to onclick handlers
 window.assignStudent = assignStudent;
@@ -2348,3 +2659,4 @@ window.runInternalAudit = runInternalAudit;
 window.holdGroupMeeting = holdGroupMeeting;
 window.overworkForFocus = overworkForFocus;
 window.autoNavigate = autoNavigate;
+window.toggleAutoRun = toggleAutoRun;

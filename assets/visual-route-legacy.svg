@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Legacy-code route visual">
+  <defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#26141a"/><stop offset="1" stop-color="#080607"/></linearGradient></defs>
+  <rect width="240" height="160" rx="18" fill="url(#bg)"/>
+  <rect x="42" y="35" width="156" height="86" rx="10" fill="#10141d" stroke="#ff5370" stroke-width="3" opacity=".9"/>
+  <path d="M60 60h55M60 80h74M60 100h40" stroke="#f4f7fb" stroke-width="5" stroke-linecap="round" opacity=".35"/>
+  <path d="M150 53l32 55h-64Z" fill="#ff5370" opacity=".9"/>
+  <path d="M150 72v18M150 99v1" stroke="#fff4ec" stroke-width="7" stroke-linecap="round"/>
+  <path d="M43 129h154" stroke="#ffd700" stroke-width="5" stroke-linecap="round" opacity=".6"/>
+</svg>

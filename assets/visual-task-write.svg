@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Paper writing visual">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#171522"/><stop offset="1" stop-color="#090b13"/></linearGradient>
+    <linearGradient id="pen" x1="0" x2="1"><stop stop-color="#ffd700"/><stop offset="1" stop-color="#ff9f1c"/></linearGradient>
+  </defs>
+  <rect width="240" height="160" rx="18" fill="url(#bg)"/>
+  <path d="M75 25h72l30 30v79H75Z" fill="#f6f0df"/>
+  <path d="M147 25v30h30" fill="#cfd7e5"/>
+  <path d="M93 65h62M93 82h68M93 99h48" stroke="#1b2535" stroke-width="6" stroke-linecap="round" opacity=".45"/>
+  <path d="M55 113l77-62 18 22-78 61-24 6Z" fill="url(#pen)" stroke="#130900" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M48 140l7-27 17 21Z" fill="#fff2b0"/>
+  <circle cx="185" cy="118" r="18" fill="#4dabf7" opacity=".14"/>
+</svg>

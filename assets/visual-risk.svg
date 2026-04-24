@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Risk audit visual">
+  <defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#24171a"/><stop offset="1" stop-color="#070507"/></linearGradient></defs>
+  <rect width="240" height="160" rx="18" fill="url(#bg)"/>
+  <path d="M120 28l70 29v44c0 27-25 44-70 55-45-11-70-28-70-55V57Z" fill="#15202b" stroke="#ff5370" stroke-width="5"/>
+  <path d="M87 84h66M97 103h46" stroke="#e9f3ff" stroke-width="6" stroke-linecap="round" opacity=".45"/>
+  <path d="M121 56v34M121 107v1" stroke="#ffd700" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="120" cy="87" r="42" fill="#ff5370" opacity=".08"/>
+</svg>

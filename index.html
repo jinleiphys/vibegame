@@ -172,6 +172,8 @@
     </div>
   </div>
 
+  <div class="visualAtlas" id="visualAtlas" aria-label="科研状态图谱"></div>
+
   <div class="strategyStrip">
     <div class="focusPanel">
       <div class="strategyLabel">本周行动点</div>
@@ -189,7 +191,14 @@
       <div class="riskGauge"><span id="riskGaugeFill"></span></div>
       <div class="strategyHint" id="riskHint">暂无可疑交付</div>
     </div>
+    <select id="autoModeSelect" class="strategySelect" title="自动导航策略">
+      <option value="balanced">均衡策略</option>
+      <option value="deadline">冲论文</option>
+      <option value="train">带学生</option>
+      <option value="safe">低风险</option>
+    </select>
     <button id="autoNavBtn" class="strategyBtn autoNavBtn">🧭 自动导航</button>
+    <button id="autoRunBtn" class="strategyBtn autoRunBtn">⏩ 自动推进</button>
     <button id="mentorBtn" class="strategyBtn mentorBtn">🧑‍🏫 组会指导</button>
     <button id="auditBtn" class="strategyBtn auditBtn">🔍 内部审计</button>
     <button id="overworkBtn" class="strategyBtn overworkBtn">☕ 爆肝 +1</button>
