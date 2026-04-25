@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>学术志：共同体</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23213b60'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-size='34' fill='%23ffd65c' font-family='serif'%3E学%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="rpgScreen">
+    <div class="mapBoard" id="mapBoard" aria-label="学术圈 RPG 地图">
+      <div class="mapShade"></div>
+      <div class="routeLine" id="routeLine"></div>
+      <div id="nodeLayer"></div>
+      <div id="npcLayer"></div>
+      <div class="playerPawn" id="playerPawn" title="Prof. Lin"><span></span></div>
+    </div>
+
+    <header class="hudTop">
+      <div class="gameTitle">
+        <div class="brandMark">学</div>
+        <div>
+          <h1>学术志：共同体</h1>
+          <p>像 RPG 一样在学术圈跑图</p>
+        </div>
+      </div>
+      <div class="statusStrip" aria-label="当前状态">
+        <div class="metric"><span>月份</span><b id="monthText">1/36</b></div>
+        <div class="metric"><span>行动</span><b id="apText">3/3</b></div>
+        <div class="metric"><span>经费</span><b id="fundText">70</b></div>
+        <div class="metric"><span>论文</span><b id="paperText">0/3</b></div>
+        <div class="metric"><span>声望</span><b id="repText">18</b></div>
+        <div class="metric"><span>信誉</span><b id="credText">55</b></div>
+        <div class="metric"><span>领域</span><b id="fieldText">8</b></div>
+      </div>
+      <div class="topButtons">
+        <button id="menuBtn" title="打开菜单">☰</button>
+        <button id="centerBtn" title="回到中心广场">⌂</button>
+        <button id="newGameBtn" title="重新开局">↻</button>
+      </div>
+    </header>
+
+    <section class="placeHud" id="placeHud">
+      <h2 id="placeTitle">办公室</h2>
+      <p id="placeDesc">安排项目、写论文和处理邮件。</p>
+      <div class="placeLine">
+        <span id="currentPlace">办公室</span>
+        <span>靠近地点后按 Enter 互动</span>
+      </div>
+    </section>
+
+    <section class="actionHud hidden" id="actionHud">
+      <div class="dialogSpeaker" id="dialogSpeaker">办公室</div>
+      <div class="dialogText" id="dialogText">你要做什么？</div>
+      <div id="actionList" class="actionList"></div>
+    </section>
+
+    <section class="paperHud menuPanel hidden" id="menuPanel">
+      <div class="paperHead">
+        <div>
+          <div class="eyebrow">Menu</div>
+          <h2 id="paperTitle">第 1 篇论文：被忽视边界条件下的新方法</h2>
+        </div>
+        <span id="paperState" class="statePill">推进中</span>
+      </div>
+      <div class="progressGrid">
+        <div class="barRow"><span>问题</span><div><i id="barQuestion"></i></div><b id="valQuestion">0</b></div>
+        <div class="barRow"><span>方法</span><div><i id="barMethod"></i></div><b id="valMethod">0</b></div>
+        <div class="barRow"><span>证据</span><div><i id="barEvidence"></i></div><b id="valEvidence">0</b></div>
+        <div class="barRow"><span>写作</span><div><i id="barWriting"></i></div><b id="valWriting">0</b></div>
+        <div class="barRow"><span>可信</span><div><i id="barTrust"></i></div><b id="valTrust">0</b></div>
+      </div>
+      <div class="storyPanel">
+        <div class="storyLine">
+          <span>剧情</span>
+          <b id="storyText">第一章：空办公室</b>
+        </div>
+        <div class="questList" id="questList"></div>
+      </div>
+      <div class="menuTeam">
+        <div><b>Prof. Lin</b><span>青年 PI</span></div>
+        <div><b>林澈</b><span id="studentText">训练 12 · 压力 28 · 信任 58</span></div>
+      </div>
+    </section>
+
+    <section class="navigatorHud menuPanel hidden" id="navigatorHud">
+      <div class="navigatorTop">
+        <div>
+          <div class="eyebrow">Auto Navigator</div>
+          <div id="navPlan" class="navPlan">正在生成下一步。</div>
+        </div>
+        <select id="autoMode" aria-label="自动导航策略">
+          <option value="balanced">均衡</option>
+          <option value="paper">冲论文</option>
+          <option value="grant">保经费</option>
+          <option value="safe">低风险</option>
+          <option value="student">带学生</option>
+        </select>
+      </div>
+      <div class="buttonRow">
+        <button id="autoStepBtn">Space 自动导航一步</button>
+        <button id="autoRunBtn">自动推进</button>
+      </div>
+    </section>
+
+    <section class="logHud menuPanel hidden" id="logHud">
+      <div class="eyebrow">Chronicle</div>
+      <div class="logList" id="logList"></div>
+    </section>
+
+    <footer class="controlHint">
+      <b>WASD / 方向键</b> 移动小人
+      <span></span>
+      <b>Enter</b> 互动
+      <span></span>
+      <b>Space</b> 自动导航
+      <span></span>
+      <b>M</b> 菜单
+    </footer>
+  </main>
+
+  <div class="guideOverlay" id="guideOverlay">
+    <div class="guideBox">
+      <div class="guideKicker">Tutorial</div>
+      <h2>欢迎来到东海学术圈</h2>
+      <p>这里不是菜单页。你要像 RPG 一样控制 Prof. Lin 在地图上移动，进入会议、期刊社、基金委和研究前沿等不同地图，靠近地点或 NPC 后互动。</p>
+      <div class="guideSteps">
+        <div><b>1</b><span>用 WASD 或方向键移动小人。</span></div>
+        <div><b>2</b><span>点击写着“进入”的入口会自动走过去并切换地图。</span></div>
+        <div><b>3</b><span>靠近 NPC 会触发学术战斗，比如组会质询、Reviewer 2 和 Debug 怪。</span></div>
+        <div><b>4</b><span>按 M 查看剧情章节、任务列表和自动导航。</span></div>
+      </div>
+      <button id="startGuideBtn">开始跑图</button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="modal">
+    <div class="modalBox">
+      <div class="modalContent">
+        <div class="eyebrow" id="modalEyebrow">Event</div>
+        <h2 id="modalTitle">标题</h2>
+        <div id="modalBody"></div>
+        <div class="modalButtons" id="modalButtons"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="battleOverlay hidden" id="battleOverlay">
+    <div class="battleBox">
+      <div class="battleTop">
+        <div class="combatant hero">
+          <div class="portrait spriteFace" id="heroFace">PI</div>
+          <div>
+            <b>Prof. Lin</b>
+            <div class="hpBar"><i id="heroHpBar"></i></div>
+            <span id="heroHpText">100/100</span>
+          </div>
+        </div>
+        <div class="battleTitle" id="battleTitle">学术战斗</div>
+        <div class="combatant enemy">
+          <div class="portrait enemyFace" id="enemyFace">R2</div>
+          <div>
+            <b id="enemyName">Reviewer 2</b>
+            <div class="hpBar enemyBar"><i id="enemyHpBar"></i></div>
+            <span id="enemyHpText">100/100</span>
+          </div>
+        </div>
+      </div>
+      <div class="battleLog" id="battleLog">遭遇战开始。</div>
+      <div class="battleActions" id="battleActions"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
